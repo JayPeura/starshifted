@@ -6,7 +6,7 @@ import {
   createWebHashHistory,
 } from "vue-router";
 import routes from "./routes";
-import { auth } from "../../firebase";
+import { auth } from "../boot/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 /*

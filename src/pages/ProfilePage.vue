@@ -22,6 +22,10 @@
 
       <h5 class="names">
         <strong>{{ profileName }}</strong>
+        <q-icon
+          :name="isUserVerified ? 'verified' : ''"
+          :class="isUserVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
+        />
         {{ " " }}
         <span class="username">@{{ currUsername }}</span>
       </h5>
@@ -42,10 +46,13 @@ import {
   get,
   getDatabase,
   child,
+  onValue,
   update,
+  query,
+  orderByChild,
 } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, database, storage } from "../../firebase";
+import db, { auth, database, storage } from "../boot/firebase";
 import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 
 const inputRef = ref(null);
@@ -60,7 +67,9 @@ export default defineComponent({
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       userId: "",
+      isUserVerified: false,
       imageURL: "",
+      merged: [],
       isYourProfile: false,
     };
   },
@@ -105,28 +114,58 @@ export default defineComponent({
     },
   },
   mounted() {
+    const userId = auth.currentUser.uid;
+
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        const userId = auth.currentUser.uid;
         const dbReff = dbRef(getDatabase());
 
-        get(child(dbReff, `users/${userId}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.currUsername = snapshot.val().username;
-              this.profileName = snapshot.val().displayName;
-              this.image = snapshot.val().image;
-              this.userId = snapshot.val().id;
-              if (this.userId === this.myID) {
-                this.isYourProfile = true;
-              }
-            } else {
-              console.log("No data available");
+        const db2 = getDatabase();
+        const usernameRef = dbRef(db2, "users/");
+        onValue(usernameRef, (snapshot) => {
+          snapshot.forEach((child) => {
+            console.log(child.key);
+
+            this.merged.unshift(child.key);
+            const data = child.val();
+            const usernames = [data.username];
+            this.merged = usernames;
+            const joinedArray = this.merged.join(" ");
+            const array = joinedArray.split(" ");
+            const filteredArray = array.find((item) => item === userId);
+            console.log(filteredArray);
+            update(dbRef(database, "users/" + userId), {
+              username: this.currUsername,
+            })
+              .then(() => {
+                // Data saved successfully!
+              })
+              .catch((error) => {
+                // The write failed...
+                alert(error);
+              });
+            if (!data.username === window.location.href.split("profile/")[1]) {
+              get(child(dbReff, `users/${filteredArray}`))
+                .then((snapshot) => {
+                  if (snapshot.exists()) {
+                    this.currUsername = snapshot.val().username;
+                    this.profileName = snapshot.val().displayName;
+                    this.image = snapshot.val().image;
+                    this.userId = snapshot.val().id;
+                    this.isUserVerified = snapshot.val().verified;
+                    if (this.userId === this.myID) {
+                      this.isYourProfile = true;
+                    }
+                  } else {
+                    console.log("No data available");
+                  }
+                })
+                .catch((error) => {
+                  console.error(error);
+                });
             }
-          })
-          .catch((error) => {
-            console.error(error);
           });
+        });
       }
     });
   },
@@ -135,6 +174,14 @@ export default defineComponent({
 <style>
 .flexy {
   display: flex;
+}
+.hideWhenNotVerified {
+  width: 0;
+}
+.showWhenVerified {
+  width: 20px;
+  margin-left: 2px;
+  margin-top: -2.5px;
 }
 .names {
   margin: 40px 0 0 20px;

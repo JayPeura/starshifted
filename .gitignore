@@ -11,7 +11,6 @@ node_modules
 /src-cordova/platforms
 /src-cordova/plugins
 /src-cordova/www
-firebase.js
 
 # Capacitor related directories and files
 /src-capacitor/www
@@ -29,3 +28,4 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
+firebase.js

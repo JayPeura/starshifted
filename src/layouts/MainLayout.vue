@@ -201,7 +201,7 @@
 <script>
 import { ref } from "vue";
 import { signOut } from "firebase/auth";
-import { auth } from "../../firebase";
+import { auth } from "../boot/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as dbRef, getDatabase, get, child } from "firebase/database";
 import { useQuasar } from "quasar";

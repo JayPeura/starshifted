@@ -75,19 +75,29 @@
                   /> </q-avatar
               ></label>
 
-              <button id="actual-btn" @click="handleRedirect" hidden></button>
+              <button
+                id="actual-btn"
+                @click="handleRedirect(post)"
+                hidden
+              ></button>
             </q-item-section>
 
             <q-item-section>
               <q-item-label class="text-subtitle1"
-                ><strong @click="handleRedirect" class="clickableLabel">{{
+                ><strong @click="handleRedirect(post)" class="clickableLabel">{{
                   post.creatorDisplayname
                 }}</strong>
-                <span
-                  class="text-grey-7 clickableLabel"
-                  @click="handleRedirect"
-                >
-                  @{{ post.creatorUsername }} &bull;
+                <q-icon
+                  :name="post.isUserVerified ? 'verified' : ''"
+                  :class="
+                    post.isUserVerified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
+                  "
+                />
+                <span class="text-grey-7">
+                  @{{ post.creatorUsername }}
+                  &bull;
                   <br class="lt-md" />
                 </span>
                 <span class="text-grey-7">
@@ -116,10 +126,11 @@
                   :color="post.liked ? 'red' : 'grey'"
                   :icon="post.liked ? 'favorite' : 'favorite_border'"
                   size="sm"
-                />
-                <div class="postLikes">
-                  {{ post.likes }}
-                </div>
+                >
+                  <span class="postLikes">
+                    {{ post.likes }}
+                  </span></q-btn
+                >
 
                 <q-btn flat round color="grey" icon="share" size="sm" />
                 <q-btn
@@ -163,7 +174,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import db, { auth, storage } from "../../firebase";
+import db, { auth, storage } from "src/boot/firebase";
 import { ref as dbRef, get, getDatabase, child } from "firebase/database";
 import { defineComponent, ref, toRaw } from "vue";
 import { formatDistance } from "date-fns";
@@ -184,6 +195,7 @@ export default defineComponent({
       currUsername: "",
       creatorUsername: "",
       creatorDisplayname: "",
+      userVerified: false,
       creatorImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       myImage:
@@ -223,7 +235,6 @@ export default defineComponent({
         this.imageUrl = fileReader.result;
       });
       fileReader.readAsDataURL(file);
-      console.log(file);
       const currentUser = auth.currentUser;
       const metadata = {
         contentType: file.type,
@@ -238,8 +249,9 @@ export default defineComponent({
 
       const snapshot = await uploadBytes(fileRef, file, metadata);
     },
-    handleRedirect() {
-      this.$router.push("/profile/" + this.creatorUsername);
+    handleRedirect(event) {
+      console.log(event.target);
+      //this.$router.push("/profile/" + this.creatorUsername);
     },
     addNewPost() {
       const creatorID = auth.currentUser.uid;
@@ -250,6 +262,7 @@ export default defineComponent({
         whoLiked: {
           [`${creatorID}`]: false,
         },
+        isUserVerified: this.userVerified,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
         creatorImage: this.myImage,
@@ -290,7 +303,7 @@ export default defineComponent({
 
       if (
         !post.whoLiked[creatorID] &&
-        post.liked === false &&
+        !post.liked &&
         this.likerID === creatorID
       ) {
         this.isLiked = true;
@@ -320,19 +333,17 @@ export default defineComponent({
       const newQuerySnapshot = await getDocs(collection(db, "posts"));
       newQuerySnapshot.forEach((post) => {
         const postData = post.data();
-        this.isLiked = postData.liked;
-        console.log(
+
+        if (
           postData.whoLiked[creatorID] &&
-            this.isLiked &&
-            postData.likerID?.find((id) => id === creatorID)
-        );
-        if (postData.whoLiked[creatorID]) {
+          postData.likerID?.find((id) => id === creatorID)
+        ) {
           this.likerID = postData.likerID;
           this.isLiked = true;
           const updateData = {
             likerID: arrayUnion(creatorID),
             [`whoLiked.${creatorID}`]: this.isLiked,
-            liked: !this.isLiked,
+            liked: this.isLiked,
             likes: postData.likes,
           };
           updateDoc(doc(db, "posts/", post.id), updateData);
@@ -342,7 +353,7 @@ export default defineComponent({
           const updateData = {
             likerID: arrayRemove(creatorID),
             [`whoLiked.${creatorID}`]: this.isLiked,
-            liked: !this.isLiked,
+            liked: this.isLiked,
             likes: postData.likes,
           };
           updateDoc(doc(db, "posts/", post.id), updateData);
@@ -351,6 +362,29 @@ export default defineComponent({
     },
   },
   async mounted() {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const userId = auth.currentUser.uid;
+        const dbReff = dbRef(getDatabase());
+        get(child(dbReff, `users/${userId}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              this.currUsername = snapshot.val().username;
+              this.currName = snapshot.val().displayName;
+              this.myImage = snapshot.val().image;
+              this.userVerified = snapshot.val().verified;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+        if (this.myID === this.creatorID) {
+          this.isHidden = true;
+        }
+      }
+    });
     const q = query(collection(db, "posts"), orderBy("date"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
@@ -380,6 +414,7 @@ export default defineComponent({
               const newInfo = {
                 creatorUsername: this.currUsername,
                 creatorDisplayname: this.currName,
+                isUserVerified: this.userVerified,
               };
               updateDoc(replaceInfo, newInfo);
             }
@@ -398,29 +433,6 @@ export default defineComponent({
     });
 
     this.getLiked();
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const userId = auth.currentUser.uid;
-        const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${userId}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.currUsername = snapshot.val().username;
-              this.currName = snapshot.val().displayName;
-              this.myImage = snapshot.val().image;
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
-        if (this.myID === this.creatorID) {
-          this.isHidden = true;
-        }
-      }
-    });
   },
 });
 </script>
@@ -432,11 +444,7 @@ export default defineComponent({
     line-height: 1.4 !important;
   }
 }
-.postLikes {
-  display: flex;
-  margin-left: -100px;
-  font-size: 14px;
-}
+
 .hidewhenimage {
   width: 0;
   height: 0;
@@ -451,10 +459,14 @@ export default defineComponent({
   object-fit: cover;
 }
 .post-icons {
-  margin-left: -15px;
-  margin-top: -25px;
-  margin-bottom: -25px;
+  width: 80%;
   align-items: center;
+  .postLikes {
+    display: flex;
+    font-size: 16px;
+    color: grey;
+    margin-left: 10px;
+  }
 }
 .post-content {
   white-space: pre-line;
