@@ -123,48 +123,43 @@ export default defineComponent({
         const db2 = getDatabase();
         const usernameRef = dbRef(db2, "users/");
         onValue(usernameRef, (snapshot) => {
-          snapshot.forEach((child) => {
-            console.log(child.key);
-
-            this.merged.unshift(child.key);
-            const data = child.val();
-            const usernames = [data.username];
-            this.merged = usernames;
-            const joinedArray = this.merged.join(" ");
-            const array = joinedArray.split(" ");
-            const filteredArray = array.find((item) => item === userId);
-            console.log(filteredArray);
-            update(dbRef(database, "users/" + userId), {
-              username: this.currUsername,
+          snapshot
+            .forEach((child) => {
+              const data = child.val();
+              this.currUsername = data.username;
+              console.log(child.val());
+              // update(dbRef(database, "users/" + userId), {
+              //   username: this.currUsername,
+              // })
+              //   .then(() => {
+              //     // Data saved successfully!
+              //   })
+              //   .catch((error) => {
+              //     // The write failed...
+              //     alert(error);
+              //   });
             })
-              .then(() => {
-                // Data saved successfully!
-              })
-              .catch((error) => {
-                // The write failed...
-                alert(error);
-              });
-            if (!data.username === window.location.href.split("profile/")[1]) {
-              get(child(dbReff, `users/${filteredArray}`))
-                .then((snapshot) => {
-                  if (snapshot.exists()) {
-                    this.currUsername = snapshot.val().username;
-                    this.profileName = snapshot.val().displayName;
-                    this.image = snapshot.val().image;
-                    this.userId = snapshot.val().id;
-                    this.isUserVerified = snapshot.val().verified;
-                    if (this.userId === this.myID) {
-                      this.isYourProfile = true;
-                    }
-                  } else {
-                    console.log("No data available");
-                  }
-                })
-                .catch((error) => {
-                  console.error(error);
-                });
-            }
-          });
+            .then((id) => {
+              console.log(id);
+            });
+          get(child(dbReff, `users/${userId}`))
+            .then((snapshot) => {
+              if (snapshot.exists()) {
+                this.currUsername = snapshot.val().username;
+                this.profileName = snapshot.val().displayName;
+                this.image = snapshot.val().image;
+                this.userId = snapshot.val().id;
+                this.isUserVerified = snapshot.val().verified;
+                if (this.userId === this.myID) {
+                  this.isYourProfile = true;
+                }
+              } else {
+                console.log("No data available");
+              }
+            })
+            .catch((error) => {
+              console.error(error);
+            });
         });
       }
     });
@@ -184,13 +179,14 @@ export default defineComponent({
   margin-top: -2.5px;
 }
 .names {
-  margin: 40px 0 0 20px;
+  margin: 40px 0 0 60px;
 }
 .fields {
-  margin: 0;
+  margin-left: 30px;
 }
 .avatar {
   margin: 15px;
+  margin-left: 50px;
   width: 80px;
   height: 80px;
   border-radius: 50%;
@@ -205,6 +201,7 @@ export default defineComponent({
   margin: 15px;
   width: 80px;
   height: 80px;
+  margin-left: 50px;
   border-radius: 50%;
   border-width: 1px;
   border-color: black;
