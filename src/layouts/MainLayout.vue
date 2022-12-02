@@ -1,0 +1,333 @@
+<template>
+  <q-layout view="lHr lpR fff">
+    <q-header bordered class="bg-primary text-white">
+      <q-toolbar>
+        <div class="leftDrawerBtn">
+          <q-btn
+            dense
+            flat
+            round
+            icon="menu"
+            class="leftDrawerBtn"
+            @click="toggleLeftDrawer"
+          />
+        </div>
+
+        <q-toolbar-title class="text-weight-bold">
+          <span class="gt-sm">{{ $route.name }}</span>
+          <img
+            class="q-pa-md logo-middle header-icon lt-md"
+            src="../assets/starshifted.png"
+          />
+        </q-toolbar-title>
+      </q-toolbar>
+    </q-header>
+
+    <q-drawer
+      show-if-above
+      v-model="leftDrawerOpen"
+      side="left"
+      bordered
+      :width="323"
+    >
+      <img
+        class="logo-left"
+        :src="
+          $q.dark.isActive
+            ? 'src/assets/starshiftedWhite.png'
+            : 'src/assets/starshifted.png'
+        "
+      />
+
+      <q-list>
+        <q-item to="/" clickable v-ripple exact>
+          <q-item-section avatar>
+            <q-icon
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+              name="home"
+              size="md"
+            />
+          </q-item-section>
+
+          <q-item-section class="text-h6">Home</q-item-section>
+        </q-item>
+        <q-item :to="'/profile/' + this.myUsername" clickable v-ripple exact>
+          <q-item-section avatar>
+            <q-icon
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+              name="person"
+              size="md"
+            />
+          </q-item-section>
+
+          <q-item-section class="text-h6">Profile</q-item-section>
+        </q-item>
+        <q-item to="/settings" clickable v-ripple exact>
+          <q-item-section avatar>
+            <q-icon
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+              name="settings"
+              size="md"
+            />
+          </q-item-section>
+
+          <q-item-section class="text-h6">Settings</q-item-section>
+        </q-item>
+
+        <div
+          class="separator-container"
+          v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
+        >
+          <div class="separator">
+            <q-item to="/about" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="info"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">About</q-item-section>
+            </q-item>
+            <q-item @click="modeHandler()" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  :name="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">{{
+                $q.dark.isActive ? "Light mode" : "Dark mode"
+              }}</q-item-section>
+            </q-item>
+
+            <q-item @click="loginHandler()" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="lock"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">{{
+                loggedIn ? "Log out" : "Log in / Sign up"
+              }}</q-item-section>
+            </q-item>
+          </div>
+        </div>
+      </q-list>
+    </q-drawer>
+
+    <q-drawer
+      show-if-above
+      v-model="rightDrawerOpen"
+      side="right"
+      :width="323"
+      bordered
+    >
+      <q-input
+        outlined
+        rounded
+        class="q-ma-md"
+        placeholder="Search Starshifted"
+      >
+        <template v-slot:prepend>
+          <q-icon name="search" />
+        </template>
+      </q-input>
+      <q-list separator padding>
+        <q-item class="q-pa-md">
+          <q-item-section>
+            <q-item-label overline class="text-grey">Animals</q-item-label>
+            <q-item-label class="text-weight-bold"
+              >Cat's are at it again!</q-item-label
+            >
+            <q-item-label caption
+              >Secondary line text. Lorem ipsum dolor sit amet, consectetur
+              adipiscit elit.</q-item-label
+            >
+          </q-item-section>
+
+          <q-item-section side top>
+            <q-item-label caption>5 min ago</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item class="q-pa-md">
+          <q-item-section>
+            <q-item-label overline class="text-grey">E-Sports</q-item-label>
+            <q-item-label class="text-weight-bold"
+              >Overwatch 2 champion</q-item-label
+            >
+            <q-item-label caption
+              >No one won this stupid ass game, touch grass</q-item-label
+            >
+          </q-item-section>
+
+          <q-item-section side top>
+            <q-item-label caption>5 min ago</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item class="q-pa-md">
+          <q-item-section>
+            <q-item-label overline class="text-grey">Animals</q-item-label>
+            <q-item-label class="text-weight-bold"
+              >Cat's are at it again!</q-item-label
+            >
+            <q-item-label caption
+              >Secondary line text. Lorem ipsum dolor sit amet, consectetur
+              adipiscit elit.</q-item-label
+            >
+          </q-item-section>
+
+          <q-item-section side top>
+            <q-item-label caption>5 min ago</q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-drawer>
+
+    <q-page-container>
+      <router-view v-slot="{ Component }">
+        <keep-alive><component :is="Component" /></keep-alive
+      ></router-view>
+    </q-page-container>
+  </q-layout>
+</template>
+
+<script>
+import { ref } from "vue";
+import { signOut } from "firebase/auth";
+import { auth } from "../../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { ref as dbRef, getDatabase, get, child } from "firebase/database";
+import { useQuasar } from "quasar";
+
+export default {
+  data() {
+    return {
+      loggedIn: false,
+      myUsername: "",
+      darkMode: false,
+    };
+  },
+  setup() {
+    const leftDrawerOpen = ref(false);
+    const rightDrawerOpen = ref(false);
+    const $q = useQuasar();
+
+    let value = localStorage.getItem("darkMode");
+    $q.dark.set(JSON.parse(value) === true);
+
+    return {
+      leftDrawerOpen,
+      toggleLeftDrawer() {
+        leftDrawerOpen.value = !leftDrawerOpen.value;
+      },
+      modeHandler() {
+        $q.dark.toggle();
+        localStorage.setItem("darkMode", $q.dark.isActive);
+      },
+      rightDrawerOpen,
+      toggleRightDrawer() {
+        rightDrawerOpen.value = !rightDrawerOpen.value;
+      },
+    };
+  },
+  methods: {
+    loginHandler() {
+      if (auth.currentUser) {
+        signOut(auth)
+          .then(() => {
+            // Sign-out successful.
+            this.loggedIn = false;
+            this.$router.push("/login");
+            alert("Logged out!");
+          })
+          .catch((error) => {
+            // An error happened.
+            alert(error);
+          });
+      } else {
+        this.$router.push("/login");
+      }
+    },
+  },
+  watch: {
+    $route(to, from) {
+      this.$router.go();
+    },
+  },
+  mounted() {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const userId = auth.currentUser.uid;
+        const dbReff = dbRef(getDatabase());
+
+        get(child(dbReff, `users/${userId}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              this.myUsername = snapshot.val().username;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+    });
+
+    if (auth.currentUser) {
+      this.loggedIn = true;
+    } else {
+      this.loggedIn = false;
+    }
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+.left-drawer {
+  padding-left: 16em;
+}
+a.q-router-link--active {
+  color: inherit;
+}
+@media screen and (min-width: 1024px) {
+  .leftDrawerBtn {
+    display: none;
+  }
+}
+.right-drawer {
+  padding-right: 16em;
+}
+.logo-left {
+  width: 4.5em;
+  padding: 0.4em;
+  margin-bottom: 2em;
+}
+.logo-middle {
+  width: 3.5em;
+  background-color: white;
+  background-clip: content-box;
+  border: 1 solid;
+  border-radius: 2em;
+}
+
+.separator {
+  margin-top: 36em;
+  padding-top: 2em;
+  border-top: 1px solid $primary;
+}
+.header-icon {
+  position: absolute;
+  top: -13px;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%);
+}
+</style>
