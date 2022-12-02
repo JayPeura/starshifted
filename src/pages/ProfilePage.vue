@@ -30,6 +30,62 @@
         <span class="username">@{{ currUsername }}</span>
       </h5>
     </div>
+    <q-item-section>
+      <q-item-label class="rounded-borders bio-content text-body1">
+        <span>{{ bio }}</span>
+      </q-item-label>
+    </q-item-section>
+    <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
+      <q-btn
+        label="Edit profile"
+        color="primary"
+        @click="prompt = true"
+        class="editProfile"
+      />
+      <q-dialog v-model="prompt" persistent>
+        <q-card style="min-width: 450px; min-height: 300px">
+          <q-card-section>
+            <div class="text-h6">Edit profile</div>
+          </q-card-section>
+
+          <q-card-section class="q-pt-none">
+            <q-input
+              square
+              outlined
+              v-model="newName"
+              placeholder="Display name"
+              autofocus
+            />
+            <br />
+            <q-input
+              square
+              outlined
+              placeholder="Bio"
+              v-model="newBio"
+              counter
+              maxlength="160"
+              autofocus
+            />
+          </q-card-section>
+
+          <q-card-actions align="right" class="text-primary">
+            <q-btn
+              flat
+              label="Cancel"
+              v-close-popup
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            />
+            <q-btn
+              flat
+              label="Done"
+              @click="editProfile"
+              v-close-popup
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+    </div>
     <div class="fields">
       Upload a new profile picture by clicking the image!
       <br />
@@ -49,6 +105,7 @@ import {
   onValue,
   update,
   query,
+  equalTo,
   orderByChild,
 } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
@@ -57,6 +114,7 @@ import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
+const prompt = ref(false);
 
 export default defineComponent({
   name: "ProfilePage",
@@ -64,11 +122,15 @@ export default defineComponent({
     return {
       profileName: "",
       currUsername: "",
+      newName: "",
+      bio: "",
+      newBio: "",
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       userId: "",
       isUserVerified: false,
       imageURL: "",
+      prompt: prompt,
       merged: [],
       isYourProfile: false,
     };
@@ -112,55 +174,83 @@ export default defineComponent({
           alert(error);
         });
     },
+    editProfile() {
+      const user = auth.currentUser;
+      if (!this.newName && this.newBio) {
+        update(dbRef(database, "users/" + user.uid), {
+          bio: this.newBio,
+        })
+          .then(() => {
+            // Data saved successfully!
+
+            this.$router.go();
+          })
+          .catch((error) => {
+            // The write failed...
+            alert(error);
+          });
+      } else if (this.newName && this.newBio) {
+        update(dbRef(database, "users/" + user.uid), {
+          displayName: this.newName,
+          bio: this.newBio,
+        })
+          .then(() => {
+            // Data saved successfully!
+            this.$router.go();
+          })
+          .catch((error) => {
+            // The write failed...
+            alert(error);
+          });
+      } else if (this.newName && !this.newBio) {
+        update(dbRef(database, "users/" + user.uid), {
+          displayName: this.newName,
+        })
+          .then(() => {
+            // Data saved successfully!
+            this.$router.go();
+          })
+          .catch((error) => {
+            // The write failed...
+            alert(error);
+          });
+      } else {
+        return;
+      }
+    },
   },
   mounted() {
     const userId = auth.currentUser.uid;
+    const username = window.location.href.split("profile/")[1];
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
+    const db2 = getDatabase();
+    const q = query(
+      dbRef(db2, "users"),
+      orderByChild("username"),
+      equalTo(username)
+    );
+    get(q).then((snapshot) => {
+      if (snapshot.exists()) {
+        const key = Object.keys(snapshot.val())[0];
         const dbReff = dbRef(getDatabase());
-
-        const db2 = getDatabase();
-        const usernameRef = dbRef(db2, "users/");
-        onValue(usernameRef, (snapshot) => {
-          snapshot
-            .forEach((child) => {
-              const data = child.val();
-              this.currUsername = data.username;
-              console.log(child.val());
-              // update(dbRef(database, "users/" + userId), {
-              //   username: this.currUsername,
-              // })
-              //   .then(() => {
-              //     // Data saved successfully!
-              //   })
-              //   .catch((error) => {
-              //     // The write failed...
-              //     alert(error);
-              //   });
-            })
-            .then((id) => {
-              console.log(id);
-            });
-          get(child(dbReff, `users/${userId}`))
-            .then((snapshot) => {
-              if (snapshot.exists()) {
-                this.currUsername = snapshot.val().username;
-                this.profileName = snapshot.val().displayName;
-                this.image = snapshot.val().image;
-                this.userId = snapshot.val().id;
-                this.isUserVerified = snapshot.val().verified;
-                if (this.userId === this.myID) {
-                  this.isYourProfile = true;
-                }
-              } else {
-                console.log("No data available");
+        get(child(dbReff, `users/${key}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              this.currUsername = snapshot.val().username;
+              this.profileName = snapshot.val().displayName;
+              this.image = snapshot.val().image;
+              this.isUserVerified = snapshot.val().verified;
+              this.bio = snapshot.val().bio;
+              if (key === userId) {
+                this.isYourProfile = true;
               }
-            })
-            .catch((error) => {
-              console.error(error);
-            });
-        });
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
       }
     });
   },
@@ -175,18 +265,31 @@ export default defineComponent({
 }
 .showWhenVerified {
   width: 20px;
-  margin-left: 2px;
+  margin-left: 5px;
   margin-top: -2.5px;
 }
 .names {
-  margin: 40px 0 0 60px;
+  margin: 40px 0 0 50px;
 }
 .fields {
   margin-left: 30px;
+  font-size: 12px;
+}
+.showIfYours {
+  display: block;
+}
+.hideIfNotYours {
+  display: none;
+}
+.editProfile {
+  display: flex;
+  position: absolute;
+  right: 30px;
+  top: 35px;
 }
 .avatar {
   margin: 15px;
-  margin-left: 50px;
+  margin-left: 40px;
   width: 80px;
   height: 80px;
   border-radius: 50%;
@@ -218,5 +321,10 @@ export default defineComponent({
 }
 .username {
   color: grey;
+}
+.bio-content {
+  white-space: pre-line;
+  margin: 30px;
+  margin-top: 0;
 }
 </style>

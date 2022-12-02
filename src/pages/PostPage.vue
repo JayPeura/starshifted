@@ -58,7 +58,11 @@
               size="sm"
             >
               <span class="postLikes">
-                {{ postLikes }}
+                {{
+                  new Intl.NumberFormat("en-GB", {
+                    notation: "compact",
+                  }).format(postLikes)
+                }}
               </span></q-btn
             >
 
@@ -173,7 +177,11 @@
                   size="sm"
                 >
                   <span class="postLikes">
-                    {{ comment.likes }}
+                    {{
+                      new Intl.NumberFormat("en-GB", {
+                        notation: "compact",
+                      }).format(comment.likes)
+                    }}
                   </span></q-btn
                 >
                 <q-btn flat round color="grey" icon="share" size="sm" />
@@ -649,12 +657,21 @@ export default defineComponent({
 .post-icons {
   width: 80%;
   align-items: center;
+  padding: 0;
   .postLikes {
     display: flex;
+    position: absolute;
     font-size: 16px;
     color: grey;
-    margin-left: 10px;
+    margin-left: 60px;
   }
+}
+.showWhenVerified {
+  margin-left: 5px;
+  margin-top: -2.5px;
+}
+.hideWhenNotVerified {
+  display: none;
 }
 .post-content {
   white-space: pre-line;

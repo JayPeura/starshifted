@@ -1,6 +1,6 @@
 <template>
   <q-page class="relative-position">
-    <q-scroll-area class="absolute full-width full-height">
+    <q-scroll-area :visible="false" class="absolute full-width full-height">
       <div class="q-py-lg q-px-md row items-end q-col-gutter-sm">
         <div class="col">
           <q-input
@@ -66,20 +66,19 @@
         >
           <q-item v-for="post in posts" :key="post.id" class="q-py-md">
             <q-item-section avatar top>
-              <label for="actual-btn" class="clickableLabel">
+              <label
+                for="actual-btn"
+                class="clickableLabel"
+                @click="handleRedirect(post)"
+              >
                 <q-avatar size="xl">
                   <img
                     v-bind:src="post.creatorImage"
                     class="avatar"
-                    for="actual-btn"
                   /> </q-avatar
               ></label>
 
-              <button
-                id="actual-btn"
-                @click="handleRedirect(post)"
-                hidden
-              ></button>
+              <button id="actual-btn" hidden></button>
             </q-item-section>
 
             <q-item-section>
@@ -106,9 +105,29 @@
               </q-item-label>
               <q-item-label class="post-content text-body1">
                 {{ post.content }}
-                <img :src="post.postImg" class="postImage" />
+                <img
+                  :src="post.postImg"
+                  :class="$q.dark.isActive ? 'postImage' : 'postImageBG'"
+                />
               </q-item-label>
-
+              <div class="postMenu row justify-between q-mt-sm">
+                <q-btn flat round icon="more_horiz" size="13px">
+                  <q-menu>
+                    <q-list
+                      :class="isHidden ? 'deleteHidden' : ''"
+                      style="min-width: 100px"
+                    >
+                      <q-item
+                        clickable
+                        @click="deletePost(post)"
+                        v-if="post.creatorId === creatorID"
+                      >
+                        <q-item-section>Delete post</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </div>
               <div class="post-icons row justify-between q-mt-sm">
                 <q-btn
                   flat
@@ -128,20 +147,15 @@
                   size="sm"
                 >
                   <span class="postLikes">
-                    {{ post.likes }}
+                    {{
+                      new Intl.NumberFormat("en-GB", {
+                        notation: "compact",
+                      }).format(post.likes)
+                    }}
                   </span></q-btn
                 >
 
                 <q-btn flat round color="grey" icon="share" size="sm" />
-                <q-btn
-                  @click="deletePost(post)"
-                  :class="myID === creatorID ? '' : 'hidden'"
-                  flat
-                  round
-                  color="grey"
-                  icon="delete"
-                  size="sm"
-                />
               </div>
             </q-item-section>
           </q-item>
@@ -167,15 +181,22 @@ import {
   doc,
   setDoc,
   where,
-  increment,
   getDocs,
   getDoc,
   updateDoc,
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import db, { auth, storage } from "src/boot/firebase";
-import { ref as dbRef, get, getDatabase, child } from "firebase/database";
+import db, { database, auth, storage } from "src/boot/firebase";
+import {
+  ref as dbRef,
+  get,
+  getDatabase,
+  child,
+  orderByChild,
+  equalTo,
+  onValue,
+} from "firebase/database";
 import { defineComponent, ref, toRaw } from "vue";
 import { formatDistance } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
@@ -196,6 +217,7 @@ export default defineComponent({
       creatorUsername: "",
       creatorDisplayname: "",
       userVerified: false,
+      creatorVerified: false,
       creatorImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       myImage:
@@ -211,6 +233,7 @@ export default defineComponent({
       likeID: likeIdRef,
       likerID: "",
       creatorID: "",
+      currentCreatorID: "",
       postID: [],
       myPosts: [],
       myID: auth.currentUser.uid,
@@ -249,9 +272,8 @@ export default defineComponent({
 
       const snapshot = await uploadBytes(fileRef, file, metadata);
     },
-    handleRedirect(event) {
-      console.log(event.target);
-      //this.$router.push("/profile/" + this.creatorUsername);
+    handleRedirect(post) {
+      this.$router.push("/profile/" + post.creatorUsername);
     },
     addNewPost() {
       const creatorID = auth.currentUser.uid;
@@ -281,7 +303,7 @@ export default defineComponent({
       if (auth.currentUser.uid === post.creatorId) {
         deleteDoc(doc(db, "posts", post.id));
       } else {
-        return alert("Not your post to delete.");
+        return;
       }
     },
     toggleLiked(post) {
@@ -361,47 +383,28 @@ export default defineComponent({
       });
     },
   },
+  /* 1. Get post creatorID's
+  2. use post creatorID's to get user specific info
+  3. use this info to set info on UI
+  */
   async mounted() {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const userId = auth.currentUser.uid;
-        const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${userId}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.currUsername = snapshot.val().username;
-              this.currName = snapshot.val().displayName;
-              this.myImage = snapshot.val().image;
-              this.userVerified = snapshot.val().verified;
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
-        if (this.myID === this.creatorID) {
-          this.isHidden = true;
-        }
-      }
-    });
     const q = query(collection(db, "posts"), orderBy("date"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
         let postChange = change.doc.data();
         postChange.id = change.doc.id;
         this.postID = postChange.id;
-
+        this.creatorID = postChange.creatorId;
         if (change.type === "added") {
           this.creatorUsername = postChange.creatorUsername;
           this.creatorDisplayname = postChange.creatorDisplayname;
           this.creatorImage = postChange.creatorImage;
           this.creatorID = postChange.creatorId;
+          this.creatorVerified = postChange.isUserVerified;
           this.postImage = postChange.postImg;
           this.postLikes = postChange.likes;
           this.isLiked = postChange.isLiked;
           this.postID = postChange.id;
-
           this.myPosts.unshift(postChange.id);
           this.posts.unshift(postChange);
 
@@ -409,15 +412,31 @@ export default defineComponent({
             const joinedArray = this.myPosts.join(" ");
             const array = joinedArray.split(" ");
             const filteredArray = array.find((item) => item === postChange.id);
-            if (this.creatorID === auth.currentUser.uid && this.postID) {
+
+            const usernameRef = dbRef(database, "users/" + this.creatorID);
+            onValue(usernameRef, (snapshot) => {
+              const data = snapshot.val();
+              console.log(data);
+              this.userVerified = data.verified;
+              this.currUsername = data.username;
+              this.currName = data.displayName;
+              this.myImage = data.image;
+
+              if (this.creatorID === auth.currentUser.uid && this.postID) {
+                const replaceInfo = doc(db, "posts/", filteredArray);
+                const newInfo = {
+                  creatorUsername: data.username,
+                  creatorDisplayname: data.displayName,
+                  isUserVerified: data.verified,
+                };
+                updateDoc(replaceInfo, newInfo);
+              }
               const replaceInfo = doc(db, "posts/", filteredArray);
               const newInfo = {
-                creatorUsername: this.currUsername,
-                creatorDisplayname: this.currName,
                 isUserVerified: this.userVerified,
               };
               updateDoc(replaceInfo, newInfo);
-            }
+            });
           }
         }
 
@@ -432,6 +451,10 @@ export default defineComponent({
       });
     });
 
+    const userId = auth.currentUser.uid;
+    if (this.myID === this.creatorID) {
+      this.isHidden = true;
+    }
     this.getLiked();
   },
 });
@@ -444,7 +467,21 @@ export default defineComponent({
     line-height: 1.4 !important;
   }
 }
-
+.postMenu {
+  position: absolute;
+  right: 10px;
+  top: 0;
+}
+.deleteHidden {
+  display: none;
+}
+.showWhenVerified {
+  margin-left: 5px;
+  margin-top: -2.5px;
+}
+.hideWhenNotVerified {
+  display: none;
+}
 .hidewhenimage {
   width: 0;
   height: 0;
@@ -461,15 +498,20 @@ export default defineComponent({
 .post-icons {
   width: 80%;
   align-items: center;
+  padding: 0;
   .postLikes {
     display: flex;
+    position: absolute;
     font-size: 16px;
     color: grey;
-    margin-left: 10px;
+    margin-left: 60px;
   }
 }
 .post-content {
   white-space: pre-line;
+}
+.hiding {
+  display: none;
 }
 .dividerDark {
   border-top: 1px solid;
@@ -489,6 +531,13 @@ export default defineComponent({
   margin-top: 10px;
 }
 .postImage {
+  width: 200px;
+  height: 200px;
+  margin-bottom: 15px;
+  margin-top: 10px;
+  display: flex;
+}
+.postImageBG {
   width: 200px;
   height: 200px;
   margin-bottom: 15px;

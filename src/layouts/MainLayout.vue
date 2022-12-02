@@ -113,9 +113,12 @@
                 />
               </q-item-section>
 
-              <q-item-section class="text-h6">{{
-                loggedIn ? "Log out" : "Log in / Sign up"
-              }}</q-item-section>
+              <q-item-section class="text-h6"
+                >{{ loggedIn ? "Log out" : "Log in / Sign up"
+                }}<span :class="loggedIn ? 'text-h6 nextToLogout' : 'noLogout'"
+                  >@{{ myUsername }}</span
+                ></q-item-section
+              >
             </q-item>
           </div>
         </div>
@@ -214,6 +217,11 @@ export default {
       darkMode: false,
     };
   },
+  watch: {
+    $route(to, from) {
+      this.$router.go();
+    },
+  },
   setup() {
     const leftDrawerOpen = ref(false);
     const rightDrawerOpen = ref(false);
@@ -254,11 +262,6 @@ export default {
       } else {
         this.$router.push("/login");
       }
-    },
-  },
-  watch: {
-    $route(to, from) {
-      this.$router.go();
     },
   },
   mounted() {
@@ -329,5 +332,14 @@ a.q-router-link--active {
   bottom: 0;
   left: 50%;
   transform: translate(-50%);
+}
+.nextToLogout {
+  display: flex;
+  position: absolute;
+  margin-left: 75px;
+}
+
+.noLogout {
+  display: none;
 }
 </style>

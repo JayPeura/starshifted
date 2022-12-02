@@ -287,8 +287,8 @@ export default {
                 this.loggedIn = true;
                 this.$emit("logged-in", this.loggedIn);
                 setTimeout(() => {
-                  window.location.href = "/";
-                }, 500);
+                  this.$router.push("/");
+                }, 200);
               })
               .catch((error) => {
                 // The write failed...

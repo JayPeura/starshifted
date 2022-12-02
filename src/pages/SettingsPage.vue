@@ -99,8 +99,7 @@ export default defineComponent({
       })
         .then(() => {
           // Data saved successfully!
-          alert("Display name changed successfully!");
-          window.location.reload();
+          this.$router.go();
         })
         .catch((error) => {
           // The write failed...
