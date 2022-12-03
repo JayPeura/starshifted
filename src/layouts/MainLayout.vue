@@ -62,6 +62,45 @@
 
           <q-item-section class="text-h6">Profile</q-item-section>
         </q-item>
+
+        <q-item :to="'/notifications'" clickable v-ripple exact>
+          <q-item-section avatar>
+            <q-icon
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+              name="notifications_none"
+              size="md"
+            />
+          </q-item-section>
+          <span
+            :class="
+              notifications && notificationsCount > 0
+                ? 'notifications'
+                : 'noNotifications'
+            "
+            ><span
+              :class="notificationsCount >= 10 ? 'noNotifications' : ''"
+              style="
+                width: 20px;
+                height: 20px;
+                margin-right: -9px;
+                float: right;
+              "
+              >{{ notificationsCount }}</span
+            ></span
+          >
+          <q-item-section class="text-h6">Notifications</q-item-section>
+        </q-item>
+        <q-item :to="'/messages/' + this.userID" clickable v-ripple exact>
+          <q-item-section avatar>
+            <q-icon
+              :color="$q.dark.isActive ? 'secondary' : 'primary'"
+              name="mail"
+              size="md"
+            />
+          </q-item-section>
+
+          <q-item-section class="text-h6">Messages</q-item-section>
+        </q-item>
         <q-item to="/settings" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
@@ -215,6 +254,9 @@ export default {
       loggedIn: false,
       myUsername: "",
       darkMode: false,
+      notifications: true,
+      notificationsCount: 0,
+      userID: auth.currentUser.uid,
     };
   },
   watch: {
@@ -322,9 +364,24 @@ a.q-router-link--active {
 }
 
 .separator {
-  margin-top: 36em;
+  margin-top: 27em;
   padding-top: 2em;
   border-top: 1px solid $primary;
+}
+.notifications {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  top: 7px;
+  left: 34px;
+  border-radius: 50%;
+  background-color: red;
+  font-weight: bolder;
+  font-size: 14px;
+  color: $secondary;
+}
+.noNotifications {
+  display: none;
 }
 .header-icon {
   position: absolute;

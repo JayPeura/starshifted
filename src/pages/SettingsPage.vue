@@ -1,11 +1,12 @@
 <template>
   <q-page>
-    <h5>Hello {{ currName }}!</h5>
+    <h5 class="q-ml-xl">Hello {{ currName }}!</h5>
 
-    <h6>Your current username is @{{ currUsername }}</h6>
+    <h6 class="q-ml-xl">Your current username is @{{ currUsername }}</h6>
 
     <q-input
       square
+      class="username"
       lazy-rules
       v-model="newUsername"
       :rules="[this.usernameShort, this.isUsernameTaken]"
@@ -17,25 +18,10 @@
         <q-icon name="person" />
       </template>
     </q-input>
-    <q-input
-      square
-      lazy-rules
-      v-model="newName"
-      value=""
-      type="name"
-      label="New display name"
-    >
-      <template v-slot:prepend>
-        <q-icon name="person" />
-      </template>
-    </q-input>
-    <br />
-    <br />
-    <q-btn @click="updateName" class="q-ma-sm">Change your username</q-btn>
 
-    <q-btn @click="changeDisplayName" class="q-ma-sm"
-      >Change display name</q-btn
-    >
+    <br />
+    <br />
+    <q-btn @click="updateName" class="updateButton">Change your username</q-btn>
   </q-page>
 </template>
 
@@ -60,7 +46,6 @@ export default defineComponent({
   data() {
     return {
       currName: "",
-      newName: "",
       newUsername: "",
       currUsername: "",
       userId: "",
@@ -92,20 +77,7 @@ export default defineComponent({
       );
       return (val && val != this.dbUsername) || "Username already taken";
     },
-    changeDisplayName() {
-      const user = auth.currentUser;
-      update(dbRef(database, "users/" + user.uid), {
-        displayName: this.newName,
-      })
-        .then(() => {
-          // Data saved successfully!
-          this.$router.go();
-        })
-        .catch((error) => {
-          // The write failed...
-          alert(error);
-        });
-    },
+
     updateName() {
       const user = auth.currentUser;
       if (this.newUsername !== this.dbUsername) {
@@ -120,6 +92,8 @@ export default defineComponent({
             // The write failed...
             alert(error);
           });
+      } else if (!this.newUsername) {
+        alert("Your new username can not be empty!");
       } else {
         alert("This username is already taken!");
       }
@@ -151,4 +125,11 @@ export default defineComponent({
 });
 </script>
 
-<style></style>
+<style>
+.username {
+  margin: 0 100px 0 100px;
+}
+.updateButton {
+  margin-left: 20em;
+}
+</style>

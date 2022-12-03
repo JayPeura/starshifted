@@ -38,9 +38,8 @@
     <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
       <q-btn
         label="Edit profile"
-        color="primary"
+        :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
         @click="prompt = true"
-        class="editProfile"
       />
       <q-dialog v-model="prompt" persistent>
         <q-card style="min-width: 450px; min-height: 300px">
@@ -256,7 +255,7 @@ export default defineComponent({
   },
 });
 </script>
-<style>
+<style lang="scss">
 .flexy {
   display: flex;
 }
@@ -281,9 +280,19 @@ export default defineComponent({
 .hideIfNotYours {
   display: none;
 }
-.editProfile {
+.editProfileDark {
   display: flex;
   position: absolute;
+  color: $secondary;
+  background-color: $grey-10;
+  right: 30px;
+  top: 35px;
+}
+.editProfileLight {
+  display: flex;
+  position: absolute;
+  color: $primary;
+  background-color: $grey-11;
   right: 30px;
   top: 35px;
 }

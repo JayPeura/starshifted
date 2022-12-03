@@ -50,6 +50,20 @@ const routes = [
         props: true,
       },
       {
+        path: "/notifications",
+        component: () => import("pages/NotificationsPage.vue"),
+        name: "Notifications",
+        meta: { requiresAuth: true },
+        props: true,
+      },
+      {
+        path: "/messages/:userID",
+        component: () => import("pages/MessagesPage.vue"),
+        name: "Your messages",
+        meta: { requiresAuth: true },
+        props: true,
+      },
+      {
         path: `/profile/:username`,
         component: () => import("pages/ProfilePage.vue"),
         name: "Profile",

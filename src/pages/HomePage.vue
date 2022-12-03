@@ -383,10 +383,6 @@ export default defineComponent({
       });
     },
   },
-  /* 1. Get post creatorID's
-  2. use post creatorID's to get user specific info
-  3. use this info to set info on UI
-  */
   async mounted() {
     const q = query(collection(db, "posts"), orderBy("date"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -416,7 +412,6 @@ export default defineComponent({
             const usernameRef = dbRef(database, "users/" + this.creatorID);
             onValue(usernameRef, (snapshot) => {
               const data = snapshot.val();
-              console.log(data);
               this.userVerified = data.verified;
               this.currUsername = data.username;
               this.currName = data.displayName;
