@@ -204,7 +204,6 @@ import { ref as stRef, uploadBytes } from "firebase/storage";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
-const likeIdRef = ref("");
 const likeRef = ref(0);
 
 export default defineComponent({
@@ -230,7 +229,6 @@ export default defineComponent({
       imageShow: false,
       postLikes: likeRef,
       likes: [],
-      likeID: likeIdRef,
       likerID: "",
       creatorID: "",
       currentCreatorID: "",
@@ -384,6 +382,19 @@ export default defineComponent({
     },
   },
   async mounted() {
+    const myID = auth.currentUser.uid;
+    const dbReff = dbRef(getDatabase());
+    get(child(dbReff, `users/${myID}`))
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          this.myImage = snapshot.val().image;
+        } else {
+          console.log("No data available");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
     const q = query(collection(db, "posts"), orderBy("date"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach(async (change) => {
@@ -410,28 +421,34 @@ export default defineComponent({
             const filteredArray = array.find((item) => item === postChange.id);
 
             const usernameRef = dbRef(database, "users/" + this.creatorID);
-            onValue(usernameRef, (snapshot) => {
-              const data = snapshot.val();
-              this.userVerified = data.verified;
-              this.currUsername = data.username;
-              this.currName = data.displayName;
-              this.myImage = data.image;
+            onValue(
+              usernameRef,
+              (snapshot) => {
+                const data = snapshot.val();
+                this.userVerified = data.verified;
+                this.currUsername = data.username;
+                this.currName = data.displayName;
 
-              if (this.creatorID === auth.currentUser.uid && this.postID) {
+                if (this.creatorID === auth.currentUser.uid && this.postID) {
+                  const replaceInfo = doc(db, "posts/", filteredArray);
+                  const newInfo = {
+                    creatorUsername: data.username,
+                    creatorDisplayname: data.displayName,
+                    isUserVerified: data.verified,
+                    creatorImage: data.image,
+                  };
+                  updateDoc(replaceInfo, newInfo);
+                }
                 const replaceInfo = doc(db, "posts/", filteredArray);
                 const newInfo = {
-                  creatorUsername: data.username,
-                  creatorDisplayname: data.displayName,
-                  isUserVerified: data.verified,
+                  isUserVerified: this.userVerified,
                 };
                 updateDoc(replaceInfo, newInfo);
+              },
+              {
+                onlyOnce: true,
               }
-              const replaceInfo = doc(db, "posts/", filteredArray);
-              const newInfo = {
-                isUserVerified: this.userVerified,
-              };
-              updateDoc(replaceInfo, newInfo);
-            });
+            );
           }
         }
 

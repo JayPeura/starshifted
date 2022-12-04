@@ -51,7 +51,12 @@
 
           <q-item-section class="text-h6">Home</q-item-section>
         </q-item>
-        <q-item :to="'/profile/' + this.myUsername" clickable v-ripple exact>
+        <q-item
+          :to="loggedIn ? '/profile/' + this.myUsername : '/profile'"
+          clickable
+          v-ripple
+          exact
+        >
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -90,7 +95,7 @@
           >
           <q-item-section class="text-h6">Notifications</q-item-section>
         </q-item>
-        <q-item :to="'/messages/' + this.userID" clickable v-ripple exact>
+        <q-item :to="'/messages'" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -256,7 +261,7 @@ export default {
       darkMode: false,
       notifications: true,
       notificationsCount: 0,
-      userID: auth.currentUser.uid,
+      userID: "",
     };
   },
   watch: {
@@ -311,6 +316,7 @@ export default {
       if (user) {
         const userId = auth.currentUser.uid;
         const dbReff = dbRef(getDatabase());
+        this.userID = userId;
 
         get(child(dbReff, `users/${userId}`))
           .then((snapshot) => {

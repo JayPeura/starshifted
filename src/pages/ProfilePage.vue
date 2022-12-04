@@ -35,12 +35,26 @@
         <span>{{ bio }}</span>
       </q-item-label>
     </q-item-section>
+    <q-item-section>
+      <q-item-label>
+        <span style="margin-right: 25px; margin-left: 20px"
+          >{{ followingCount }}
+          <span style="margin-left: 5px; color: grey">Following</span></span
+        >
+
+        <span
+          >{{ followerCount }}
+          <span style="margin-left: 5px; color: grey">Followers</span></span
+        >
+      </q-item-label>
+    </q-item-section>
     <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
       <q-btn
         label="Edit profile"
         :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
         @click="prompt = true"
       />
+
       <q-dialog v-model="prompt" persistent>
         <q-card style="min-width: 450px; min-height: 300px">
           <q-card-section>
@@ -85,11 +99,29 @@
         </q-card>
       </q-dialog>
     </div>
-    <div class="fields">
-      Upload a new profile picture by clicking the image!
-      <br />
-      <span class="fileTypesSpan">(Supported file types: jpg, png, jpeg)</span>
-      <br />
+    <div :class="!isYourProfile && followed ? 'showIfNotYours' : 'hideIfYours'">
+      <q-btn
+        label="Message"
+        :class="$q.dark.isActive ? 'messageDark' : 'messageLight'"
+        :to="'/messages/' + this.userID"
+      />
+    </div>
+    <div :class="!isYourProfile ? 'showIfNotYours' : 'hideIfYours'">
+      <q-btn
+        :label="checkFollowed()"
+        :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
+        @click="toggleFollow"
+      />
+    </div>
+    <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
+      <div class="fields">
+        Upload a new profile picture by clicking the image!
+        <br />
+        <span class="fileTypesSpan"
+          >(Supported file types: jpg, png, jpeg)</span
+        >
+        <br />
+      </div>
     </div>
   </q-page>
 </template>
@@ -126,17 +158,182 @@ export default defineComponent({
       newBio: "",
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
-      userId: "",
+      userID: "",
+      theirID: "",
       isUserVerified: false,
       imageURL: "",
       prompt: prompt,
       merged: [],
       isYourProfile: false,
+      followed: false,
+      followingCount: 0,
+      followerCount: 0,
+      followerID: "",
+      theyFollowed: false,
     };
   },
   methods: {
     pickFile() {
       this.$refs.fileInput.click();
+    },
+    checkFollowed() {
+      if (!this.followed && !this.theyFollowed) {
+        return "Follow";
+      } else if (this.followed && !this.theyFollowed) {
+        return "Unfollow";
+      } else if (this.followed && this.theyFollowed) {
+        return "Unfollow";
+      } else if (!this.followed && this.theyFollowed) {
+        return "Follow back";
+      }
+    },
+    toggleFollow() {
+      const followerID = auth.currentUser.uid;
+
+      const username = window.location.href.split("profile/")[1];
+
+      const db2 = getDatabase();
+      const q = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
+      );
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+
+          this.userID = key;
+
+          const userFollowRef = dbRef(database, "users/" + key);
+          onValue(
+            userFollowRef,
+            (snapshot) => {
+              const info = snapshot.val();
+
+              const myRef = dbRef(database, "users/" + followerID);
+              onValue(
+                myRef,
+                (snapshot) => {
+                  const myInfo = snapshot.val();
+
+                  if (info.followers === undefined) {
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: !info.followed,
+                    });
+                    return;
+                  }
+                  if (this.userID === "") {
+                    return;
+                  }
+
+                  if (isNaN(info.followerCount)) {
+                    update(dbRef(database, "users/" + key), {
+                      followerCount: 0,
+                    });
+                  }
+                  if (isNaN(info.followingCount)) {
+                    update(dbRef(database, "users/" + key), {
+                      followingCount: 0,
+                    });
+                  }
+
+                  if (!this.followed) {
+                    this.followed = true;
+                    this.followerCount = info.followerCount;
+                    this.followingCount = info.followingCount;
+                    this.theyFollowed = info.followers[followerID];
+
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: !info.followed,
+                      followed: !info.followed,
+                      followerCount: info.followerCount + 1,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      followingCount: myInfo.followingCount + 1,
+                    });
+                  } else {
+                    this.followed = false;
+                    this.followerCount = info.followerCount;
+                    this.followingCount = info.followingCount;
+                    this.theyFollowed = info.followers[followerID];
+
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: !info.followed,
+                      followed: !info.followed,
+                      followerCount: Math.max(0, info.followerCount - 1),
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      followingCount: Math.max(0, myInfo.followingCount - 1),
+                    });
+                  }
+                },
+                {
+                  onlyOnce: true,
+                }
+              );
+            },
+            {
+              onlyOnce: true,
+            }
+          );
+        }
+      });
+    },
+    async getFollows() {
+      const followerID = auth.currentUser.uid;
+
+      const username = window.location.href.split("profile/")[1];
+
+      const db2 = getDatabase();
+      const q = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
+      );
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+          this.userID = key;
+
+          const userFollowRef = dbRef(database, "users/" + key);
+          onValue(userFollowRef, (snapshot) => {
+            const info = snapshot.val();
+            this.followerCount = info.followerCount;
+            this.followed = info.followed;
+            this.followingCount = info.followingCount;
+
+            if (isNaN(info.followerCount)) {
+              update(dbRef(database, "users/" + key), {
+                followerCount: 0,
+              });
+            }
+            if (isNaN(info.followingCount)) {
+              update(dbRef(database, "users/" + key), {
+                followingCount: 0,
+              });
+            }
+            if (info.following === undefined) {
+              update(dbRef(database, "users/" + key), {
+                [`following/${followerID}`]: false,
+              });
+            }
+
+            const myRef = dbRef(database, "users/" + followerID);
+            onValue(
+              myRef,
+              (snapshot) => {
+                const myInfo = snapshot.val();
+                this.theyFollowed = myInfo.following[key];
+              },
+              {
+                onlyOnce: true,
+              }
+            );
+          });
+        }
+      });
     },
     async onFilePicked(e) {
       const files = e.target.files;
@@ -232,6 +429,15 @@ export default defineComponent({
       if (snapshot.exists()) {
         const key = Object.keys(snapshot.val())[0];
         const dbReff = dbRef(getDatabase());
+        this.userID = key;
+
+        const userFollowRef = dbRef(database, "users/" + key);
+        onValue(userFollowRef, (snapshot) => {
+          const info = snapshot.val();
+          this.followerCount = info.followerCount;
+          this.followed = info.followed;
+          this.followingCount = info.followingCount;
+        });
         get(child(dbReff, `users/${key}`))
           .then((snapshot) => {
             if (snapshot.exists()) {
@@ -240,6 +446,17 @@ export default defineComponent({
               this.image = snapshot.val().image;
               this.isUserVerified = snapshot.val().verified;
               this.bio = snapshot.val().bio;
+              if (snapshot.val().followerCount > 0) {
+                this.followerCount = snapshot.val().followerCount;
+              } else {
+                this.followerCount = 0;
+              }
+              if (snapshot.val().followingCount > 0) {
+                this.followingCount = snapshot.val().followingCount;
+              } else {
+                this.followingCount = 0;
+              }
+
               if (key === userId) {
                 this.isYourProfile = true;
               }
@@ -252,6 +469,7 @@ export default defineComponent({
           });
       }
     });
+    this.getFollows();
   },
 });
 </script>
@@ -273,6 +491,12 @@ export default defineComponent({
 .fields {
   margin-left: 30px;
   font-size: 12px;
+}
+.showIfNotYours {
+  display: block;
+}
+.hideIfYours {
+  display: none;
 }
 .showIfYours {
   display: block;
@@ -296,6 +520,22 @@ export default defineComponent({
   right: 30px;
   top: 35px;
 }
+.messageDark {
+  display: flex;
+  position: absolute;
+  color: $secondary;
+  background-color: $grey-10;
+  right: 150px;
+  top: 35px;
+}
+.messageLight {
+  display: flex;
+  position: absolute;
+  color: $primary;
+  background-color: $grey-11;
+  right: 150px;
+  top: 35px;
+}
 .avatar {
   margin: 15px;
   margin-left: 40px;
@@ -313,7 +553,7 @@ export default defineComponent({
   margin: 15px;
   width: 80px;
   height: 80px;
-  margin-left: 50px;
+  margin-left: 40px;
   border-radius: 50%;
   border-width: 1px;
   border-color: black;

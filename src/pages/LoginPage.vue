@@ -161,7 +161,6 @@ const emailRef = ref(""),
   passwordRef = ref(""),
   displaynameRef = ref(""),
   imageRef = ref(""),
-  verifiedRef = ref(false),
   repasswordRef = ref("");
 
 export default {
@@ -173,7 +172,6 @@ export default {
       password: passwordRef,
       repassword: repasswordRef,
       displayname: displaynameRef,
-      verified: verifiedRef,
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       register: false,
@@ -246,8 +244,13 @@ export default {
               username: this.$refs.username.modelValue,
               email: this.$refs.email.modelValue,
               displayName: this.$refs.displayname.modelValue,
+              [`followers/${user.uid}`]: false,
+              [`following/${user.uid}`]: false,
               image: this.image,
-              verified: this.verified,
+              verified: false,
+              followed: false,
+              followerCount: 0,
+              followingCount: 0,
             })
               .then(() => {
                 // Data saved successfully!
