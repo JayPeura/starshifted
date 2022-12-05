@@ -60,6 +60,7 @@ export default defineComponent({
     },
     isUsernameTaken(val) {
       const usernameRef = dbRef(database, "users");
+      let takenNames = [];
       onValue(
         usernameRef,
         (snapshot) => {
@@ -67,7 +68,7 @@ export default defineComponent({
             const childKey = childSnapshot.key;
             const childData = childSnapshot.val();
             if (val === childData.username) {
-              this.dbUsername = childData.username;
+              takenNames = childData.username;
             }
           });
         },
@@ -75,7 +76,7 @@ export default defineComponent({
           onlyOnce: false,
         }
       );
-      return (val && val != this.dbUsername) || "Username already taken";
+      return (val && val !== takenNames) || "Username already taken";
     },
 
     updateName() {

@@ -64,7 +64,7 @@ const routes = [
         props: true,
       },
       {
-        path: "/messages/:userID",
+        path: "/messages/:theirID",
         component: () => import("src/components/MessageView.vue"),
         name: "Message",
         meta: { requiresAuth: true },

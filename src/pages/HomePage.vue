@@ -113,14 +113,11 @@
               <div class="postMenu row justify-between q-mt-sm">
                 <q-btn flat round icon="more_horiz" size="13px">
                   <q-menu>
-                    <q-list
-                      :class="isHidden ? 'deleteHidden' : ''"
-                      style="min-width: 100px"
-                    >
+                    <q-list style="min-width: 100px">
                       <q-item
                         clickable
                         @click="deletePost(post)"
-                        v-if="post.creatorId === creatorID"
+                        v-if="post.creatorId === myID"
                       >
                         <q-item-section>Delete post</q-item-section>
                       </q-item>
@@ -197,7 +194,7 @@ import {
   equalTo,
   onValue,
 } from "firebase/database";
-import { defineComponent, ref, toRaw } from "vue";
+import { defineComponent, ref, toRaw, nextTick } from "vue";
 import { formatDistance } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
@@ -289,6 +286,7 @@ export default defineComponent({
         creatorId: creatorID,
         postImg: this.imageUrl,
         likes: 0,
+        isHidden: false,
       };
       // this.posts.unshift(newPost);
       addDoc(collection(db, "posts"), newPost);
@@ -380,9 +378,117 @@ export default defineComponent({
         }
       });
     },
+    async getDelete(post) {
+      const myID = auth.currentUser.uid;
+
+      const docRef = doc(db, "posts", post.id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        this.isHidden = data.isHidden;
+        console.log(data);
+        if (data.creatorId === myID) {
+          const updateData = {
+            isHidden: false,
+          };
+          updateDoc(doc(db, "posts/", post.id), updateData);
+        } else {
+          const updateData = {
+            isHidden: true,
+          };
+          updateDoc(doc(db, "posts/", post.id), updateData);
+        }
+      } else {
+        // doc.data() will be undefined in this case
+        console.log("No such document!");
+      }
+    },
+    getPosts() {
+      const myID = auth.currentUser.uid;
+
+      const q = query(collection(db, "posts"), orderBy("date"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          let postChange = change.doc.data();
+          postChange.id = change.doc.id;
+          this.postID = postChange.id;
+          this.creatorID = postChange.creatorId;
+
+          if (change.type === "added") {
+            this.creatorUsername = postChange.creatorUsername;
+            this.creatorDisplayname = postChange.creatorDisplayname;
+            this.creatorImage = postChange.creatorImage;
+            this.creatorVerified = postChange.isUserVerified;
+            this.postImage = postChange.postImg;
+            this.postLikes = postChange.likes;
+            this.isLiked = postChange.isLiked;
+            this.postID = postChange.id;
+            this.creatorID = postChange.creatorId;
+            this.myPosts.unshift(postChange.id);
+            this.posts.unshift(postChange);
+
+            if (postChange.creatorId === this.creatorID) {
+              const joinedArray = this.myPosts.join(" ");
+              const array = joinedArray.split(" ");
+              const filteredArray = array.find(
+                (item) => item === postChange.id
+              );
+
+              const usernameRef = dbRef(
+                database,
+                "users/" + postChange.creatorId
+              );
+              onValue(usernameRef, (snapshot) => {
+                const data = snapshot.val();
+                this.userVerified = data.verified;
+                this.currUsername = data.username;
+                this.currName = data.displayName;
+                if (this.creatorID === myID && this.postID) {
+                  const replaceInfo = doc(db, "posts/", filteredArray);
+                  const newInfo = {
+                    creatorUsername: data.username,
+                    creatorDisplayname: data.displayName,
+                    isUserVerified: data.verified,
+                    creatorImage: data.image,
+                    isHidden: false,
+                  };
+                  updateDoc(replaceInfo, newInfo);
+                } else if (!this.creatorID === myID) {
+                  const replaceInfo = doc(db, "posts/", filteredArray);
+                  const newInfo = {
+                    isHidden: true,
+                  };
+                  updateDoc(replaceInfo, newInfo);
+                }
+                const replaceInfo = doc(db, "posts/", filteredArray);
+                const newInfo = {
+                  isUserVerified: this.userVerified,
+                };
+                updateDoc(replaceInfo, newInfo);
+              });
+            }
+          }
+
+          if (change.type === "modified") {
+            let index = this.posts.findIndex(
+              (post) => post.id === postChange.id
+            );
+            Object.assign(this.posts[index], postChange);
+          }
+          if (change.type === "removed") {
+            let index = this.posts.findIndex(
+              (post) => post.id === postChange.id
+            );
+            this.posts.splice(index, 1);
+          }
+        });
+      });
+    },
   },
   async mounted() {
     const myID = auth.currentUser.uid;
+
     const dbReff = dbRef(getDatabase());
     get(child(dbReff, `users/${myID}`))
       .then((snapshot) => {
@@ -395,78 +501,7 @@ export default defineComponent({
       .catch((error) => {
         console.error(error);
       });
-    const q = query(collection(db, "posts"), orderBy("date"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
-        let postChange = change.doc.data();
-        postChange.id = change.doc.id;
-        this.postID = postChange.id;
-        this.creatorID = postChange.creatorId;
-        if (change.type === "added") {
-          this.creatorUsername = postChange.creatorUsername;
-          this.creatorDisplayname = postChange.creatorDisplayname;
-          this.creatorImage = postChange.creatorImage;
-          this.creatorID = postChange.creatorId;
-          this.creatorVerified = postChange.isUserVerified;
-          this.postImage = postChange.postImg;
-          this.postLikes = postChange.likes;
-          this.isLiked = postChange.isLiked;
-          this.postID = postChange.id;
-          this.myPosts.unshift(postChange.id);
-          this.posts.unshift(postChange);
-
-          if (postChange.creatorId === this.creatorID) {
-            const joinedArray = this.myPosts.join(" ");
-            const array = joinedArray.split(" ");
-            const filteredArray = array.find((item) => item === postChange.id);
-
-            const usernameRef = dbRef(database, "users/" + this.creatorID);
-            onValue(
-              usernameRef,
-              (snapshot) => {
-                const data = snapshot.val();
-                this.userVerified = data.verified;
-                this.currUsername = data.username;
-                this.currName = data.displayName;
-
-                if (this.creatorID === auth.currentUser.uid && this.postID) {
-                  const replaceInfo = doc(db, "posts/", filteredArray);
-                  const newInfo = {
-                    creatorUsername: data.username,
-                    creatorDisplayname: data.displayName,
-                    isUserVerified: data.verified,
-                    creatorImage: data.image,
-                  };
-                  updateDoc(replaceInfo, newInfo);
-                }
-                const replaceInfo = doc(db, "posts/", filteredArray);
-                const newInfo = {
-                  isUserVerified: this.userVerified,
-                };
-                updateDoc(replaceInfo, newInfo);
-              },
-              {
-                onlyOnce: true,
-              }
-            );
-          }
-        }
-
-        if (change.type === "modified") {
-          let index = this.posts.findIndex((post) => post.id === postChange.id);
-          Object.assign(this.posts[index], postChange);
-        }
-        if (change.type === "removed") {
-          let index = this.posts.findIndex((post) => post.id === postChange.id);
-          this.posts.splice(index, 1);
-        }
-      });
-    });
-
-    const userId = auth.currentUser.uid;
-    if (this.myID === this.creatorID) {
-      this.isHidden = true;
-    }
+    this.getPosts();
     this.getLiked();
   },
 });

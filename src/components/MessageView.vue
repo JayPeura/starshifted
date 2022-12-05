@@ -1,5 +1,5 @@
 <template>
-  <q-page class="flex column">
+  <q-page ref="scrollPage" class="flex column">
     <q-scroll-area
       :visible="false"
       class="absolute full-width full-height spacious"
@@ -15,7 +15,7 @@
       <div :class="!areThereMessages ? 'showIfMessages' : 'hideIfNoMessages'">
         <h5 style="width: 100%; text-align: center">
           This is the beginning of your messaging with <br />
-          <strong style="margin-right: 4px">{{ displayName }}</strong>
+          <strong style="margin-right: 4px">{{ theirName }}</strong>
           <q-icon
             :name="verified ? 'verified' : ''"
             :class="verified ? 'showWhenVerified' : 'hideWhenNotVerified'"
@@ -25,16 +25,20 @@
         <p style="width: 100%; text-align: center">Send them a message!</p>
       </div>
       <div :class="areThereMessages ? 'showIfMessages' : 'hideIfNoMessages'">
-        <div class="q-pa-md q-pt-xl column col justify-end">
+        <div class="q-pa-md">
           <transition-group appear>
             <q-chat-message
               v-for="message in messages"
               :key="message.id"
-              :name="!sender ? message.displayName : 'You'"
+              :name="
+                message.receiverID === this.userID ? message.displayName : 'You'
+              "
+              :avatar="message.image"
               name-html
               :text="[message.content]"
               text-html
-              :sent="sender ? true : false"
+              :sent="message.receiverID === this.userID ? false : true"
+              bg-color="grey-10"
               :stamp="
                 formatDistance(message.date, new Date(), {
                   addSuffix: true,
@@ -42,63 +46,7 @@
               "
               size="5"
               text-color="white"
-              bg-color="grey-9"
             />
-            <!-- <q-item-section avatar top>
-                  <label for="actual-btn">
-                    <q-avatar size="xl">
-                      <img
-                        v-bind:src="message.photoUrl"
-                        class="avatar"
-                      /> </q-avatar
-                  ></label>
-
-                  <button id="actual-btn" hidden></button>
-                </q-item-section>
-
-                <q-item-section>
-                  <q-item-label class="text-subtitle1"
-                    ><strong>{{ message.displayName }}</strong>
-                    <q-icon
-                      :name="message.verified ? 'verified' : ''"
-                      :class="
-                        message.verified
-                          ? 'showWhenVerified'
-                          : 'hideWhenNotVerified'
-                      "
-                    />
-                    <span class="text-grey-7">
-                      {{ formatDistance(message.date, new Date()) }}</span
-                    >
-                  </q-item-label>
-                  <q-item-label class="post-content text-body1">
-                    {{ message.content }}
-                    <img
-                      :src="messageImg"
-                      :class="$q.dark.isActive ? 'postImage' : 'postImageBG'"
-                    />
-                  </q-item-label>
-                </q-item-section> -->
-
-            <!-- <div :class="!sender ? 'hideIfSender' : 'showIfSender'"> -->
-            <!-- <q-item class="q-py-md ISentIt">
-                <q-item-section>
-                  <q-item-label class="text-subtitle1"
-                    ><strong style="margin-right: 5px">You</strong>
-                    <span class="text-grey-7">
-                      {{ formatDistance(message.date, new Date()) }}</span
-                    >
-                  </q-item-label>
-                  <q-item-label class="message-content text-body1">
-                    {{ message.content }}
-                    <img
-                      :src="messageImg"
-                      :class="$q.dark.isActive ? 'postImage' : 'postImageBG'"
-                    />
-                  </q-item-label>
-                </q-item-section>
-              </q-item> -->
-            <!-- </div> -->
           </transition-group>
         </div>
       </div>
@@ -112,8 +60,8 @@
             placeholder="Start a new message"
             rounded
             outlined
-            autogrow
             bg-color="grey-10"
+            @keyup.enter="sendMessage"
           >
           </q-input>
         </div>
@@ -163,21 +111,25 @@ import {
   where,
 } from "firebase/firestore";
 import {
-  ref as dbRef,
+  set,
   get,
+  ref as dbRef,
   getDatabase,
   child,
+  push,
   onValue,
   update,
   orderByKey,
   query as dbQuery,
   equalTo,
+  onChildAdded,
   orderByChild,
 } from "firebase/database";
 import db, { auth, database } from "../boot/firebase";
 import { formatDistance } from "date-fns";
 
 const messageRef = ref("");
+const scrollPage = ref("");
 
 export default {
   name: "MessageView",
@@ -185,9 +137,11 @@ export default {
     return {
       areThereMessages: false,
       formatDistance,
-      displayName: "",
+      theirName: "",
+      myName: "",
       username: "",
       receiverID: "",
+      userID: "",
       photoUrl: "",
       sender: false,
       message: "",
@@ -199,118 +153,76 @@ export default {
       verified: false,
       theirImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
+      myImage:
+        "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
     };
   },
+  watch: {
+    messages: function (val) {
+      if (Object.keys(val).length) {
+        this.scrollToBottom();
+      }
+    },
+  },
   methods: {
+    scrollToBottom() {
+      let scrollPage = this.$refs.scrollPage.$el;
+      setTimeout(() => {
+        window.scrollTo(0, scrollPage.scrollHeight);
+      }, 20);
+    },
     sendMessage() {
       const myID = auth.currentUser.uid;
+
       const newMessageContent = {
         content: this.content,
         date: Date.now(),
-        receiverUsername: this.username,
         senderID: myID,
         receiverID: this.receiverID,
         receiverVerified: this.verified,
-        receiverName: this.displayName,
+        senderName: this.theirName,
         image: this.theirImage,
+        displayName: this.myName,
       };
+      const db2 = getDatabase();
 
-      addDoc(collection(db, `messages`), newMessageContent);
+      addDoc(collection(db, `messages/`), newMessageContent);
       this.content = "";
     },
     getMessages() {
-      const receiverID = this.$route.params.userID;
+      const myID = auth.currentUser.uid;
+      const receiverID = this.$route.params.theirID;
+      this.receiverID = receiverID;
 
-      const getAllMessages = query(
-        collection(db, "messages"),
-        orderBy("date", "desc"),
-        limit(100),
-        where("receiverID", "in", [receiverID, this.userID])
-      );
-
-      const unsubscribe = onSnapshot(getAllMessages, (snapshot) => {
-        this.messages = snapshot.docs
-          .map((doc) => ({ id: doc.id, ...doc.data() }))
-          .reverse();
-        snapshot.docChanges().forEach(async (change) => {
-          let messageChange = change.doc.data();
-          messageChange.id = change.doc.id;
-          if (messageChange.receiverID !== this.userID) {
-            this.sender = true;
-          } else {
-            this.sender = false;
-          }
+      const q = query(collection(db, "messages"), orderBy("date"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          const changeData = change.doc.data();
+          changeData.id = change.doc.id;
+          this.messageID = changeData.id;
 
           if (change.type === "added") {
-            this.username = messageChange.receiverUsername;
-            this.displayName = messageChange.receiverName;
-            this.creatorImage = messageChange.image;
-            this.receiverID = messageChange.receiverID;
-            this.postImage = messageChange.postImg;
-            this.theirImage = messageChange.image;
-            this.messageID = messageChange.id;
-            this.date = messageChange.date;
-            this.message = messageChange.content;
+            this.creatorID = changeData.creatorId;
+            this.messages.push(changeData);
             this.areThereMessages = true;
-
-            // if (postChange.creatorId === this.creatorID) {
-            //   const joinedArray = this.myPosts.join(" ");
-            //   const array = joinedArray.split(" ");
-            //   const filteredArray = array.find((item) => item === postChange.id);
-
-            // const usernameRef = dbRef(database, "users/" + auth.currentUser.uid);
-            // onValue(usernameRef, (snapshot) => {
-            //   const data = snapshot.val();
-            //   console.log(data);
-            // this.userVerified = data.verified;
-            // this.currUsername = data.username;
-            // this.currName = data.displayName;
-            // this.myImage = data.image;
-
-            //     if (this.creatorID === auth.currentUser.uid && this.postID) {
-            //       const replaceInfo = doc(db, "posts/", filteredArray);
-            //       const newInfo = {
-            //         creatorUsername: data.username,
-            //         creatorDisplayname: data.displayName,
-            //         isUserVerified: data.verified,
-            //       };
-            //       updateDoc(replaceInfo, newInfo);
-            //     }
-            //     const replaceInfo = doc(db, "posts/", filteredArray);
-            //     const newInfo = {
-            //       isUserVerified: this.userVerified,
-            //     };
-            //     updateDoc(replaceInfo, newInfo);
+            // Object.keys(data).forEach((key) => {
+            //   this.messages.push({
+            //     id: key,
+            //     content: data[key].content,
+            //     date: data[key].date,
+            //     image: data[key].image,
+            //     displayName: data[key].displayName,
+            //   });
             // });
-            // }
-          }
-
-          if (change.type === "modified") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            Object.assign(this.posts[index], postChange);
-          }
-          if (change.type === "removed") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            this.posts.splice(index, 1);
           }
         });
       });
-
-      // const unsub = messagesQuery.onSnapshot((snapshot) => {
-      //   messages.value = snapshot.docs
-      //     .map((doc) => ({ id: doc.id, ...doc.data() }))
-      //     .reverse();
-      // });
     },
   },
   mounted() {
-    this.userID = auth.currentUser.uid;
+    const myID = auth.currentUser.uid;
 
-    const receiverID = this.$route.params.userID;
+    const receiverID = this.$route.params.theirID;
 
     const db2 = getDatabase();
     const userQ = dbQuery(dbRef(db2, "users"));
@@ -322,10 +234,25 @@ export default {
           .then((snapshot) => {
             if (snapshot.exists()) {
               this.username = snapshot.val().username;
-              this.displayName = snapshot.val().displayName;
+              this.theirName = snapshot.val().displayName;
               this.theirImage = snapshot.val().image;
               this.verified = snapshot.val().verified;
               this.receiverID = receiverID;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+        get(child(dbReff, `users/${myID}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              this.myUsername = snapshot.val().username;
+              this.myName = snapshot.val().displayName;
+              this.myImage = snapshot.val().image;
+              this.ImVerified = snapshot.val().verified;
+              this.userID = myID;
             } else {
               console.log("No data available");
             }

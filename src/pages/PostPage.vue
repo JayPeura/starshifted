@@ -1,84 +1,94 @@
 <template>
   <q-page class="relative-position">
     <q-scroll-area class="absolute full-width full-height">
-      <q-item class="q-py-md">
-        <q-item-section avatar top>
-          <label for="actual-btn" class="clickableLabel">
-            <q-avatar size="xl">
-              <img
-                v-bind:src="posterImage"
-                class="avatar"
-                for="actual-btn"
-              /> </q-avatar
-          ></label>
+      <div v-if="!postDeleted">
+        <q-item class="q-py-md">
+          <q-item-section avatar top>
+            <label for="actual-btn" class="clickableLabel">
+              <q-avatar size="xl">
+                <img
+                  v-bind:src="posterImage"
+                  class="avatar"
+                  for="actual-btn"
+                /> </q-avatar
+            ></label>
 
-          <button id="actual-btn" @click="handleRedirect" hidden></button>
-        </q-item-section>
+            <button id="actual-btn" @click="handleRedirect" hidden></button>
+          </q-item-section>
 
-        <q-item-section>
-          <q-item-label class="text-subtitle1"
-            ><strong @click="handleRedirect" class="clickableLabel">{{
-              posterName
-            }}</strong>
-            <q-icon
-              :name="posterVerified ? 'verified' : ''"
-              :class="
-                posterVerified ? 'showWhenVerified' : 'hideWhenNotVerified'
-              "
-            />
-            <span class="text-grey-7">
-              @{{ posterUsername }}
-              &bull;
-              <br class="lt-md" />
-            </span>
-            <span class="text-grey-7">
-              {{ formatDistance(posterDate, new Date()) }}</span
-            >
-          </q-item-label>
-          <q-item-label class="post-content text-body1">
-            {{ posterContent }}
-            <img :src="postImage" class="postImage" />
-          </q-item-label>
+          <q-item-section>
+            <q-item-label class="text-subtitle1"
+              ><strong @click="handleRedirect" class="clickableLabel">{{
+                posterName
+              }}</strong>
+              <q-icon
+                :name="posterVerified ? 'verified' : ''"
+                :class="
+                  posterVerified ? 'showWhenVerified' : 'hideWhenNotVerified'
+                "
+              />
+              <span class="text-grey-7">
+                @{{ posterUsername }}
+                &bull;
+                <br class="lt-md" />
+              </span>
+              <span class="text-grey-7">
+                {{ formatDistance(posterDate, new Date()) }}</span
+              >
+            </q-item-label>
+            <q-item-label class="post-content text-body1">
+              {{ posterContent }}
+              <img :src="postImage" class="postImage" />
+            </q-item-label>
+            <div class="postMenu row justify-between q-mt-sm">
+              <q-btn flat round icon="more_horiz" size="13px">
+                <q-menu>
+                  <q-list style="min-width: 100px">
+                    <q-item
+                      clickable
+                      @click="deletePost"
+                      v-if="this.posterID === myID"
+                    >
+                      <q-item-section>Delete post</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-btn>
+            </div>
+            <div class="post-icons row justify-between q-mt-sm">
+              <q-btn
+                flat
+                round
+                color="grey"
+                icon="chat_bubble_outline"
+                size="sm"
+              />
+              <q-btn flat round color="grey" icon="cached" size="sm" />
+              <q-btn
+                flat
+                round
+                @click="togglePostLiked"
+                :color="postLiked ? 'red' : 'grey'"
+                :icon="postLiked ? 'favorite' : 'favorite_border'"
+                size="sm"
+              >
+                <span class="postLikes">
+                  {{
+                    new Intl.NumberFormat("en-GB", {
+                      notation: "compact",
+                    }).format(postLikes)
+                  }}
+                </span></q-btn
+              >
 
-          <div class="post-icons row justify-between q-mt-sm">
-            <q-btn
-              flat
-              round
-              color="grey"
-              icon="chat_bubble_outline"
-              size="sm"
-            />
-            <q-btn flat round color="grey" icon="cached" size="sm" />
-            <q-btn
-              flat
-              round
-              @click="togglePostLiked"
-              :color="postLiked ? 'red' : 'grey'"
-              :icon="postLiked ? 'favorite' : 'favorite_border'"
-              size="sm"
-            >
-              <span class="postLikes">
-                {{
-                  new Intl.NumberFormat("en-GB", {
-                    notation: "compact",
-                  }).format(postLikes)
-                }}
-              </span></q-btn
-            >
-
-            <q-btn flat round color="grey" icon="share" size="sm" />
-            <q-btn
-              @click="deletePost"
-              :class="myID === creatorID ? '' : 'hidden'"
-              flat
-              round
-              color="grey"
-              icon="delete"
-              size="sm"
-            />
-          </div>
-        </q-item-section>
-      </q-item>
+              <q-btn flat round color="grey" icon="share" size="sm" />
+            </div>
+          </q-item-section>
+        </q-item>
+      </div>
+      <div v-else>
+        <h4 style="width: 100%; text-align: center">Post deleted</h4>
+      </div>
       <q-separator
         size="10px"
         :color="$q.dark.isActive ? 'grey-10' : 'grey-4'"
@@ -112,7 +122,7 @@
             @click="addNewPost"
             icon="send"
             class="q-mb-lg"
-            :disable="!newStarshiftingPost"
+            :disable="!newStarshiftingPost || postDeleted"
           />
         </div>
       </div>
@@ -159,6 +169,21 @@
               <q-item-label class="post-content text-body1">
                 {{ comment.content }}
               </q-item-label>
+              <div class="postMenu row justify-between q-mt-sm">
+                <q-btn flat round icon="more_horiz" size="13px">
+                  <q-menu>
+                    <q-list style="min-width: 100px">
+                      <q-item
+                        clickable
+                        @click="deleteComment(comment)"
+                        v-if="comment.creatorId === myID"
+                      >
+                        <q-item-section>Delete post</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </div>
               <div class="post-icons row justify-between q-mt-sm">
                 <q-btn
                   flat
@@ -185,15 +210,6 @@
                   </span></q-btn
                 >
                 <q-btn flat round color="grey" icon="share" size="sm" />
-                <q-btn
-                  @click="deletePost(comment)"
-                  :class="myID === creatorID ? '' : 'hidden'"
-                  flat
-                  round
-                  color="grey"
-                  icon="delete"
-                  size="sm"
-                />
               </div>
             </q-item-section>
           </q-item>
@@ -254,6 +270,7 @@ export default defineComponent({
       userVerified: false,
       postLikes: 0,
       creatorID: "",
+      postDeleted: false,
       likerID: "",
       whoLiked: [],
       postID: window.location.href.split("post/")[1],
@@ -261,6 +278,7 @@ export default defineComponent({
       posterName: "",
       posterUsername: "",
       posterImage: "",
+      posterID: "",
       posterContent: "",
       posterVerified: false,
       postLiked: false,
@@ -290,7 +308,6 @@ export default defineComponent({
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
         creatorImage: this.myImage,
-        creatorId: creatorID,
         commentImg: this.creatorImage,
         likes: 0,
       };
@@ -300,7 +317,15 @@ export default defineComponent({
         this.newStarshiftingPost = "";
       }
     },
-    deletePost(comment) {
+    deletePost() {
+      if (auth.currentUser.uid === this.posterID) {
+        deleteDoc(doc(db, `posts/${this.postID}`));
+        this.postDeleted = true;
+      } else {
+        return;
+      }
+    },
+    deleteComment(comment) {
       if (auth.currentUser.uid === comment.creatorId) {
         deleteDoc(doc(db, `posts/${this.postID}/comments`, comment.id));
       } else {
@@ -522,6 +547,7 @@ export default defineComponent({
       this.posterVerified = post.isUserVerified;
       this.postImage = post.postImg;
       this.postLikes = post.likes;
+      this.posterID = post.creatorId;
       this.whoLiked = post.whoLiked;
       this.postLiked = post.liked;
       this.likerID = post.likerID;
@@ -606,6 +632,11 @@ export default defineComponent({
       this.posterVerified = docSnapData.isUserVerified;
     }
 
+    if (this.posterContent === "") {
+      this.postDeleted = true;
+    } else {
+      this.postDeleted = false;
+    }
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const userId = auth.currentUser.uid;
@@ -653,6 +684,11 @@ export default defineComponent({
 }
 .avatar {
   object-fit: cover;
+}
+.postMenu {
+  position: absolute;
+  right: 10px;
+  top: 0;
 }
 .post-icons {
   width: 80%;

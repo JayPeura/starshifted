@@ -239,7 +239,6 @@ export default {
           .then((userCredential) => {
             // Signed in
             const user = userCredential.user;
-            console.log(this.$refs.image);
             set(dbRef(database, "users/" + user.uid), {
               username: this.$refs.username.modelValue,
               email: this.$refs.email.modelValue,
