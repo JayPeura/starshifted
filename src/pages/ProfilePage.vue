@@ -99,14 +99,12 @@
         </q-card>
       </q-dialog>
     </div>
-    <div :class="!isYourProfile && followed ? 'showIfNotYours' : 'hideIfYours'">
+    <div :class="!isYourProfile ? 'showIfNotYours' : 'hideIfYours'">
       <q-btn
         label="Message"
         :class="$q.dark.isActive ? 'messageDark' : 'messageLight'"
-        :to="'/messages/' + this.userID"
+        @click="handleRedirect"
       />
-    </div>
-    <div :class="!isYourProfile ? 'showIfNotYours' : 'hideIfYours'">
       <q-btn
         :label="checkFollowed()"
         :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
@@ -127,7 +125,7 @@
 </template>
 
 <script>
-import { defineComponent, ref } from "vue";
+import { defineComponent, ref, toRaw } from "vue";
 import {
   ref as dbRef,
   get,
@@ -139,6 +137,19 @@ import {
   equalTo,
   orderByChild,
 } from "firebase/database";
+import {
+  getDocs,
+  query as fsQuery,
+  getDoc,
+  addDoc,
+  setDoc,
+  doc,
+  updateDoc,
+  collection,
+  onSnapshot,
+  limit,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import db, { auth, database, storage } from "../boot/firebase";
 import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
@@ -158,6 +169,8 @@ export default defineComponent({
       newBio: "",
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
+      myImage:
+        "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       userID: "",
       theirID: "",
       isUserVerified: false,
@@ -170,9 +183,79 @@ export default defineComponent({
       followerCount: 0,
       followerID: "",
       theyFollowed: false,
+      receiverList: false,
+      chatIDList: [],
+      senderList: false,
     };
   },
   methods: {
+    async handleRedirect() {
+      const myID = auth.currentUser.uid;
+
+      const receiverList = await getDocs(
+        fsQuery(
+          collection(db, "chats/"),
+          where("receiverID", "in", [this.userID, myID])
+        )
+      );
+
+      if (!receiverList.empty) {
+        receiverList.forEach(async (receiver) => {
+          const receiverID = receiver.data().receiverID;
+          const senderID = receiver.data().senderID;
+          const id = receiver.id;
+          console.log(id);
+          if (receiverID === myID) {
+            if (senderID === this.userID) {
+              this.$router.push("/messages/" + id);
+            } else {
+              await addDoc(collection(db, "chats"), {
+                lastMessage: "",
+                receiverID: this.userID,
+                senderID: myID,
+                theirImage: this.image,
+                myImage: this.myImage,
+                lastMessageAt: Date.now(),
+              }).then(async (docRef) => {
+                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+                this.$router.push("/messages/" + docRef.id);
+              });
+            }
+          } else if (receiverID === this.userID) {
+            if (senderID === myID) {
+              this.$router.push("/messages/" + id);
+            } else {
+              await addDoc(collection(db, "chats"), {
+                lastMessage: "",
+                receiverID: this.userID,
+                senderID: myID,
+                theirImage: this.image,
+                myImage: this.myImage,
+                lastMessageAt: Date.now(),
+              }).then(async (docRef) => {
+                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+                this.$router.push("/messages/" + docRef.id);
+              });
+            }
+          } else {
+            console.log("No chats with these ID's yet made.");
+          }
+        });
+      } else {
+        console.log("No data yet, creating...");
+        await addDoc(collection(db, "chats"), {
+          lastMessage: "",
+          receiverID: this.userID,
+          senderID: myID,
+          theirImage: this.image,
+          myImage: this.myImage,
+          lastMessageAt: Date.now(),
+        }).then(async (docRef) => {
+          await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+          this.$router.push("/messages/" + docRef.id);
+        });
+      }
+    },
     pickFile() {
       this.$refs.fileInput.click();
     },
@@ -203,7 +286,6 @@ export default defineComponent({
           const key = Object.keys(snapshot.val())[0];
 
           this.userID = key;
-
           const userFollowRef = dbRef(database, "users/" + key);
           onValue(
             userFollowRef,
@@ -215,7 +297,6 @@ export default defineComponent({
                 myRef,
                 (snapshot) => {
                   const myInfo = snapshot.val();
-
                   if (info.followers === undefined) {
                     update(dbRef(database, "users/" + key), {
                       [`followers/${followerID}`]: !info.followed,
@@ -326,6 +407,7 @@ export default defineComponent({
               (snapshot) => {
                 const myInfo = snapshot.val();
                 this.theyFollowed = myInfo.following[key];
+                this.myImage = myInfo.image;
               },
               {
                 onlyOnce: true,
@@ -415,7 +497,7 @@ export default defineComponent({
       }
     },
   },
-  mounted() {
+  async mounted() {
     const userId = auth.currentUser.uid;
     const username = window.location.href.split("profile/")[1];
 
@@ -469,6 +551,7 @@ export default defineComponent({
           });
       }
     });
+
     this.getFollows();
   },
 });

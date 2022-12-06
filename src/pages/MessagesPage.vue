@@ -51,30 +51,106 @@
         </q-list>
         <q-list v-for="chat in chats" :key="chat.id">
           <q-item
-            v-if="chat.data.lastMessage"
+            v-if="myID === chat.senderID"
             @click="handleChat(chat)"
             class="q-my-md"
             clickable
           >
             <q-item-section avatar>
               <q-avatar size="xl">
-                <img v-bind:src="chat.userImage" class="avatar" />
+                <img
+                  v-bind:src="
+                    myID === chat.senderID ? chat.theirImage : chat.myImage
+                  "
+                  class="avatar"
+                />
               </q-avatar>
             </q-item-section>
 
             <q-item-section>
-              <q-item-label
-                >{{ chat.userDisplayName }}
+              <q-item-label class="text-subtitle2"
+                ><strong>{{
+                  myID === chat.senderID ? chat.theirName : chat.myName
+                }}</strong>
                 <q-icon
-                  :name="chat.userVerified ? 'verified' : ''"
+                  :name="chat.theyVerified ? 'verified' : ''"
                   :class="
-                    chat.userVerified
+                    chat.theyVerified
                       ? 'showWhenVerified'
                       : 'hideWhenNotVerified'
                   "
-              /></q-item-label>
+                />
+                <span class="text-grey-7">
+                  @{{ chat.theirUsername }}
+                  &bull;
+                  <br class="lt-md" />
+                </span>
+                <span class="text-grey-7">
+                  {{
+                    formatDistance(chat.lastMessageAt, new Date(), {
+                      addSuffix: true,
+                    })
+                  }}</span
+                >
+              </q-item-label>
               <q-item-label caption lines="2">{{
-                chat.data.lastMessage
+                chat.lastMessage
+              }}</q-item-label>
+            </q-item-section>
+          </q-item>
+          <q-item
+            v-if="chat.receiverID === myID"
+            @click="handleChat(chat)"
+            class="q-my-md"
+            clickable
+          >
+            <q-item-section avatar>
+              <q-avatar size="xl">
+                <img
+                  v-bind:src="
+                    myID === chat.senderID ? chat.theirImage : chat.myImage
+                  "
+                  class="avatar"
+                />
+              </q-avatar>
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="text-subtitle2"
+                ><strong>{{
+                  myID === chat.senderID ? chat.theirName : chat.myName
+                }}</strong>
+                <q-icon
+                  :name="
+                    myID === chat.senderID && chat.theyVerified
+                      ? 'verified'
+                      : ''
+                  "
+                  :class="
+                    myID === chat.senderID && chat.theyVerified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
+                  "
+                />
+                <span class="text-grey-7">
+                  @{{
+                    myID === chat.senderID
+                      ? chat.theirUsername
+                      : chat.myUsername
+                  }}
+                  &bull;
+                  <br class="lt-md" />
+                </span>
+                <span class="text-grey-7">
+                  {{
+                    formatDistance(chat.lastMessageAt, new Date(), {
+                      addSuffix: true,
+                    })
+                  }}</span
+                >
+              </q-item-label>
+              <q-item-label caption lines="2">{{
+                chat.lastMessage
               }}</q-item-label>
             </q-item-section>
           </q-item>
@@ -89,7 +165,7 @@ import { ref, toRaw, nextTick } from "vue";
 import {
   collection,
   orderBy,
-  query,
+  query as fsQuery,
   onSnapshot,
   getDocs,
   setDoc,
@@ -129,10 +205,14 @@ export default {
       imageUrl: imageUrlRef,
       image: imageRef,
       searchUsers: searchUsersRef,
-      displayName: "",
+      myName: "",
+      theirName: "",
+      myUsername: "",
       theirUsername: "",
-      receiverID: "",
+      theyVerified: false,
+      myVerified: false,
       userID: "",
+      myID: auth.currentUser.uid,
       users: [],
       chats: [],
       myMessages: [],
@@ -179,36 +259,48 @@ export default {
       }
     },
     async handleRedirect(user) {
-      const querySnapshot = await getDocs(collection(db, "chats"));
-      if (!querySnapshot.empty) {
-        querySnapshot.forEach(async (docs) => {
-          const data = docs.data();
-          const id = docs.id;
+      const myID = auth.currentUser.uid;
 
-          // WORK ON THIS!!!!!
-          const receiverList = await getDocs(
-            query(
-              collection(db, "chats/" + id + "/messages"),
-              where("receiverID", "==", user.id)
-            )
-          );
-          const senderList = await getDocs(
-            query(
-              collection(db, "chats/" + id + "/messages"),
-              where("senderID", "==", user.id)
-            )
-          );
-          if (receiverList.empty && senderList.empty) {
-            console.log("No chat records found");
-            // await addDoc(collection(db, "chats"), {
-            //   lastMessage: "",
-            //   receiverID: user.id,
-            // }).then((docRef) => {
-            //   this.$router.push("/messages/" + docRef.id);
-            // });
+      const receiverList = await getDocs(
+        fsQuery(
+          collection(db, "chats/"),
+          where("receiverID", "in", [user.id, myID])
+        )
+      );
+
+      if (!receiverList.empty) {
+        receiverList.forEach(async (receiver) => {
+          const receiverID = receiver.data().receiverID;
+          const senderID = receiver.data().senderID;
+          const id = receiver.id;
+          if (receiverID === myID) {
+            if (senderID === user.id) {
+              this.$router.push("/messages/" + id);
+            } else {
+              await addDoc(collection(db, "chats"), {
+                lastMessage: "",
+                receiverID: user.id,
+                senderID: myID,
+              }).then(async (docRef) => {
+                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+                this.$router.push("/messages/" + docRef.id);
+              });
+            }
+          } else if (receiverID === user.id) {
+            if (senderID === myID) {
+              this.$router.push("/messages/" + id);
+            } else {
+              await addDoc(collection(db, "chats"), {
+                lastMessage: "",
+                receiverID: user.id,
+                senderID: myID,
+              }).then(async (docRef) => {
+                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+                this.$router.push("/messages/" + docRef.id);
+              });
+            }
           } else {
-            console.log("Either list has data");
-            return;
+            console.log("No chats with these ID's yet made.");
           }
         });
       } else {
@@ -216,65 +308,106 @@ export default {
         await addDoc(collection(db, "chats"), {
           lastMessage: "",
           receiverID: user.id,
-        }).then((docRef) => {
+          theirImage: this.theirImage,
+          myImage: this.myImage,
+          lastMessageAt: Date.now(),
+          senderID: myID,
+        }).then(async (docRef) => {
+          await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
           this.$router.push("/messages/" + docRef.id);
         });
       }
-      this.searchUsers = "";
     },
     handleChat(chat) {
       this.$router.push("/messages/" + chat.id);
     },
     async getChats() {
-      const querySnapshot = await getDocs(collection(db, "chats"));
-      if (!querySnapshot.empty) {
-        querySnapshot.forEach(async (chats) => {
-          const id = chats.id;
-          const data = chats.data();
+      const myID = auth.currentUser.uid;
 
-          this.chats.push({ id: id, data: data });
+      const receiverList = await getDocs(
+        fsQuery(
+          collection(db, "chats/"),
+          orderBy("lastMessageAt", "desc"),
+          where("receiverID", "in", [this.userID, myID])
+        )
+      );
 
-          // console.log(toRaw(this.chats));
-          if (id) {
-            const messageSnapshot = await getDocs(
-              collection(db, "chats/" + id + "/messages")
-            );
-
-            if (messageSnapshot.empty) {
-              console.log(
-                "Empty... Populating by one (1) empty message. Ignore this."
-              );
-              await addDoc(collection(db, "chats/" + id + "/messages"), {
-                content: "",
-              });
+      if (!receiverList.empty) {
+        receiverList.forEach(async (receiver) => {
+          const receiverID = receiver.data().receiverID;
+          const senderID = receiver.data().senderID;
+          const id = receiver.id;
+          if (receiverID === myID || senderID === myID) {
+            if (senderID === this.userID) {
             } else {
-              // const unsub = onSnapshot(doc(db, "chats", id), (doc) => {
-              //   console.log(doc.data());
-              //   console.log(toRaw(this.chats));
-              // });
-
-              // const getMessages = await getDoc(doc(db, "chats/" + id));
-              // getMessages.forEach((message) => {
-              //   const key = message.id;
-              //   const data = message.data();
-              //   this.chats.push(data);
-
-              //   // console.log(toRaw(this.chats));
-              // });
-              return () => {
-                unsub();
-              };
             }
+          } else if (receiverID === this.userID || senderID === this.userID) {
+          } else {
+            console.log("No chats with these ID's yet made.");
           }
         });
       } else {
-        console.log("No data");
+        console.log("No data yet, creating...");
       }
+
+      const receiverQuery = await fsQuery(
+        collection(db, "chats/"),
+        orderBy("lastMessageAt")
+      );
+      const unsubscribe = onSnapshot(receiverQuery, (querySnapshot) => {
+        querySnapshot.forEach((chats) => {
+          const id = chats.id;
+          const data = chats.data();
+
+          this.chats.unshift(data);
+        });
+      });
     },
   },
-  mounted() {
-    this.userID = auth.currentUser.uid;
+  async mounted() {
+    const myID = auth.currentUser.uid;
 
+    const receiverList = await getDocs(
+      fsQuery(collection(db, "chats"), where("senderID", "==", myID))
+    );
+    receiverList.forEach(async (chats) => {
+      const id = chats.id;
+      const data = chats.data();
+      this.userID = data.senderID;
+
+      const db2 = getDatabase();
+
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${data.senderID}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.theirUsername = snapshot.val().username;
+            this.theirName = snapshot.val().displayName;
+            this.theirImage = snapshot.val().image;
+            this.theyVerified = snapshot.val().verified;
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+
+      get(child(dbReff, `users/${myID}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.myUsername = snapshot.val().username;
+            this.myName = snapshot.val().displayName;
+            this.myImage = snapshot.val().image;
+            this.myVerified = snapshot.val().verified;
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    });
     this.getChats();
   },
 };

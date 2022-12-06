@@ -8,7 +8,7 @@
         style="left: 10px; position: fixed; top: 1%; z-index: 1"
         icon="arrow_back"
         color="primary"
-        label="BACK"
+        label="TO MESSAGES"
         :to="'/messages'"
         clickable
       />
@@ -17,8 +17,8 @@
           This is the beginning of your messaging with <br />
           <strong style="margin-right: 4px">{{ theirName }}</strong>
           <q-icon
-            :name="verified ? 'verified' : ''"
-            :class="verified ? 'showWhenVerified' : 'hideWhenNotVerified'"
+            :name="theyVerified ? 'verified' : ''"
+            :class="theyVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
           />
           <span class="styleUsername">@{{ username }}</span>
         </h5>
@@ -29,12 +29,16 @@
           <q-chat-message
             v-for="message in messages"
             :key="message.id"
-            :name="message.senderID !== this.myID ? message.senderName : 'You'"
+            :name="
+              message.senderID !== myID
+                ? message.senderName + ' @' + message.senderUsername
+                : 'You'
+            "
             name-html
             :text="[message.content]"
             text-html
-            :sent="message.senderID === this.myID ? true : false"
-            :bg-color="message.senderID !== this.myID ? 'grey-10' : 'grey-9'"
+            :sent="message.senderID === myID ? true : false"
+            :bg-color="message.senderID !== myID ? 'grey-10' : 'grey-9'"
             :stamp="
               formatDistance(message.date, new Date(), {
                 addSuffix: true,
@@ -44,11 +48,21 @@
             text-color="white"
             ref="scrollPage"
           >
-            <template v-slot:avatar>
+            <template v-if="myID === message.senderID" v-slot:avatar>
               <img
                 class="q-message-avatar q-message-avatar--sent"
-                :src="message.image" /></template
-          ></q-chat-message>
+                :src="
+                  myID !== message.senderID ? message.image : message.myImage
+                "
+            /></template>
+            <template v-else-if="myID === message.receiverID" v-slot:avatar>
+              <img
+                class="q-message-avatar q-message-avatar--sent"
+                :src="
+                  myID === message.senderID ? message.image : message.myImage
+                "
+            /></template>
+          </q-chat-message>
 
           <!-- OLD MESSAGE STRUCTURE -->
           <!-- <transition-group
@@ -232,7 +246,8 @@ export default {
       messages: [],
       content: messageRef,
       from: "You",
-      verified: false,
+      theyVerified: false,
+      myVerified: false,
       theirImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       myImage:
@@ -256,50 +271,55 @@ export default {
     handleRedirect(message) {
       this.$router.push("/profile/" + message.receiverUsername);
     },
-    sendMessage() {
+    async sendMessage() {
       const myID = auth.currentUser.uid;
+      const id = this.$route.params.chatID;
+      const getReceiverID = await getDoc(doc(db, "chats/" + id));
+      const receiver = getReceiverID.data().receiverID;
+      const sender = getReceiverID.data().senderID;
 
-      const dbReff = dbRef(getDatabase());
-      get(child(dbReff, `users/${this.receiverID}`))
-        .then((snapshot) => {
-          if (snapshot.exists()) {
-            console.log(snapshot.val());
-            this.username = snapshot.val().username;
-            this.theirName = snapshot.val().displayName;
-            this.theirUsername = snapshot.val().username;
-            this.theirImage = snapshot.val().image;
-            this.verified = snapshot.val().verified;
+      if (receiver === myID) {
+        this.receiverID = sender;
+      } else {
+        this.receiverID = receiver;
+      }
 
-            const newMessageContent = {
-              content: this.content,
-              date: Date.now(),
-              senderID: myID,
-              receiverID: this.receiverID,
-              receiverVerified: this.verified,
-              receiverUsername: this.theirUsername,
-              senderName: this.myName,
-              image: this.myImage,
-              displayName: this.theirName,
-            };
+      const newMessageContent = {
+        content: this.content,
+        date: Date.now(),
+        senderID: myID,
+        receiverID: this.receiverID,
+        receiverVerified: this.theyVerified,
+        receiverUsername: this.theirUsername,
+        senderName: this.myName,
+        image: this.theirImage,
+        myImage: this.myImage,
+        receiverName: this.theirName,
+        senderUsername: this.username,
+      };
 
-            addDoc(
-              collection(db, `chats/${this.chatID}/messages`),
-              newMessageContent
-            );
+      await addDoc(
+        collection(db, `chats/${this.chatID}/messages`),
+        newMessageContent
+      );
 
-            setDoc(
-              doc(db, `chats/${this.chatID}`),
-              { lastMessage: this.content },
-              { merge: true }
-            );
-            this.content = "";
-          } else {
-            console.log("No data available");
-          }
-        })
-        .catch((error) => {
-          console.error(error);
-        });
+      await setDoc(
+        doc(db, `chats/${this.chatID}`),
+        {
+          lastMessage: this.content,
+          lastMessageAt: Date.now(),
+          myVerified: this.myVerified,
+          theyVerified: this.theyVerified,
+          myImage: this.myImage,
+          theirImage: this.theirImage,
+          theirName: this.theirName,
+          theirUsername: this.theirUsername,
+          myUsername: this.username,
+          myName: this.myName,
+        },
+        { merge: true }
+      );
+      this.content = "";
     },
     getMessages() {
       const myID = auth.currentUser.uid;
@@ -317,22 +337,7 @@ export default {
           messageChange.id = change.doc.id;
 
           if (change.type === "added") {
-            this.theirUsername = messageChange.receiverUsername;
-            this.theirName = messageChange.receiverName;
-            this.creatorImage = messageChange.image;
-            this.verified = messageChange.receiverVerified;
-            this.postImage = messageChange.postImg;
-            this.theirImage = messageChange.image;
-            this.messageID = messageChange.id;
-            this.date = messageChange.date;
-            this.message = messageChange.content;
             this.areThereMessages = true;
-
-            if (messageChange.senderID === myID) {
-              this.sender = false;
-            } else {
-              this.sender = true;
-            }
           }
         });
       });
@@ -344,36 +349,55 @@ export default {
 
     const id = this.$route.params.chatID;
     const getReceiverID = await getDoc(doc(db, "chats/" + id));
-    this.receiverID = getReceiverID.data().receiverID;
+    const receiver = getReceiverID.data().receiverID;
+    const sender = getReceiverID.data().senderID;
 
+    const dbReff = dbRef(getDatabase());
+
+    if (receiver === myID) {
+      get(child(dbReff, `users/${sender}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.theirName = snapshot.val().displayName;
+            this.theirUsername = snapshot.val().username;
+            this.theirImage = snapshot.val().image;
+            this.theyVerified = snapshot.val().verified;
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    } else {
+      get(child(dbReff, `users/${receiver}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.theirName = snapshot.val().displayName;
+            this.theirUsername = snapshot.val().username;
+            this.theirImage = snapshot.val().image;
+            this.theyVerified = snapshot.val().verified;
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }
     const db2 = getDatabase();
     const userQ = dbQuery(dbRef(db2, "users"));
     get(userQ).then((snapshot) => {
       if (snapshot.exists()) {
         const key = Object.keys(snapshot.val());
-        const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${this.receiverID}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.username = snapshot.val().username;
-              this.theirName = snapshot.val().displayName;
-              this.theirUsername = snapshot.val().username;
-              this.theirImage = snapshot.val().image;
-              this.verified = snapshot.val().verified;
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
+
         get(child(dbReff, `users/${myID}`))
           .then((snapshot) => {
             if (snapshot.exists()) {
-              this.myUsername = snapshot.val().username;
+              this.username = snapshot.val().username;
               this.myName = snapshot.val().displayName;
               this.myImage = snapshot.val().image;
-              this.ImVerified = snapshot.val().verified;
+              this.myVerified = snapshot.val().verified;
             } else {
               console.log("No data available");
             }
