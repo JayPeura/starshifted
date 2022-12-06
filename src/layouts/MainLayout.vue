@@ -370,8 +370,9 @@ a.q-router-link--active {
 }
 
 .separator {
-  margin-top: 27em;
-  padding-top: 2em;
+  position: absolute;
+  bottom: 5px;
+  width: 322px;
   border-top: 1px solid $primary;
 }
 .notifications {

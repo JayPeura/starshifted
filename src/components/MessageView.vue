@@ -1,5 +1,5 @@
 <template>
-  <q-page ref="scrollPage" class="flex column">
+  <q-page class="flex column">
     <q-scroll-area
       :visible="false"
       class="absolute full-width full-height spacious"
@@ -9,7 +9,7 @@
         icon="arrow_back"
         color="primary"
         label="BACK"
-        :to="'/messages/'"
+        :to="'/messages'"
         clickable
       />
       <div :class="!areThereMessages ? 'showIfMessages' : 'hideIfNoMessages'">
@@ -25,29 +25,105 @@
         <p style="width: 100%; text-align: center">Send them a message!</p>
       </div>
       <div :class="areThereMessages ? 'showIfMessages' : 'hideIfNoMessages'">
-        <div class="q-pa-md">
-          <transition-group appear>
-            <q-chat-message
+        <div class="q-pa-md q-pt-xl">
+          <q-chat-message
+            v-for="message in messages"
+            :key="message.id"
+            :name="message.senderID !== this.myID ? message.senderName : 'You'"
+            name-html
+            :text="[message.content]"
+            text-html
+            :sent="message.senderID === this.myID ? true : false"
+            :bg-color="message.senderID !== this.myID ? 'grey-10' : 'grey-9'"
+            :stamp="
+              formatDistance(message.date, new Date(), {
+                addSuffix: true,
+              })
+            "
+            size="5"
+            text-color="white"
+            ref="scrollPage"
+          >
+            <template v-slot:avatar>
+              <img
+                class="q-message-avatar q-message-avatar--sent"
+                :src="message.image" /></template
+          ></q-chat-message>
+
+          <!-- OLD MESSAGE STRUCTURE -->
+          <!-- <transition-group
+            appear
+            enter-active-class="animated fadeIn slow"
+            leave-active-class="animated fadeOut slow"
+          >
+            <q-item
               v-for="message in messages"
               :key="message.id"
-              :name="
-                message.receiverID === this.userID ? message.displayName : 'You'
-              "
-              :avatar="message.image"
-              name-html
-              :text="[message.content]"
-              text-html
-              :sent="message.receiverID === this.userID ? false : true"
-              bg-color="grey-10"
-              :stamp="
-                formatDistance(message.date, new Date(), {
-                  addSuffix: true,
-                })
-              "
-              size="5"
-              text-color="white"
-            />
-          </transition-group>
+              class="q-py-md"
+            >
+              <div v-if="!sender">
+                <q-item class="q-py-md YouSentIt">
+                  <q-item-section avatar top>
+                    <label for="actual-btn">
+                      <q-avatar size="xl">
+                        <img
+                          v-bind:src="message.image"
+                          class="avatar"
+                        /> </q-avatar
+                    ></label>
+                    <button id="actual-btn" hidden></button>
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="text-subtitle1"
+                      ><strong>{{ message.displayName }}</strong> {{ " " }}
+                      <q-icon
+                        :name="!message.receiverVerified ? 'verified' : ''"
+                        :class="
+                          !message.receiverVerified
+                            ? 'showWhenVerified'
+                            : 'hideWhenNotVerified'
+                        "
+                      />
+                      <span class="text-grey-7">
+                        {{ formatDistance(message.date, new Date()) }}</span
+                      >
+                    </q-item-label>
+                    <q-item-label class="message-content text-body1">
+                      {{ message.content }}
+                      <img
+                        :src="messageImg"
+                        :class="$q.dark.isActive ? 'postImage' : 'postImageBG'"
+                      />
+                    </q-item-label> </q-item-section
+                ></q-item>
+              </div>
+              <div v-else>
+                <q-item
+                  :class="sender ? 'q-py-md ISentIt' : 'q-py-md YouSentIt'"
+                >
+                  <q-item-section>
+                    <q-item-label class="text-subtitle1"
+                      ><strong style="margin-right: 5px">You</strong>
+                      <span class="text-grey-7">
+                        {{
+                          formatDistance(message.date, new Date(), {
+                            addSuffix: true,
+                          })
+                        }}</span
+                      >
+                    </q-item-label>
+                    <q-item-label class="message-content text-body1">
+                      {{ message.content }}
+                      <img
+                        :src="messageImg"
+                        :class="$q.dark.isActive ? 'postImage' : 'postImageBG'"
+                      />
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </div>
+            </q-item>
+          </transition-group> -->
         </div>
       </div>
       <div
@@ -60,7 +136,7 @@
             placeholder="Start a new message"
             rounded
             outlined
-            bg-color="grey-10"
+            :bg-color="$q.dark.isActive ? 'grey-10' : 'grey-5'"
             @keyup.enter="sendMessage"
           >
           </q-input>
@@ -68,22 +144,22 @@
 
         <div class="col col-shrink">
           <!-- <q-btn
-          icon="image"
-          round
-          dense
-          flat
-          class="q-mb-lg"
-          type="button"
-          @click="pickFile"
-        />
-        <q-file
-          style="display: none"
-          v-model="image"
-          accept=".jpg, image/*"
-          @update:model-value="onFilePicked(e)"
-          ref="files"
-        >
-        </q-file> -->
+            icon="image"
+            round
+            dense
+            flat
+            class="q-mb-lg"
+            type="button"
+            @click="pickFile"
+          />
+          <q-file
+            style="display: none"
+            v-model="image"
+            accept=".jpg, image/*"
+            @update:model-value="onFilePicked(e)"
+            ref="files"
+          >
+          </q-file> -->
           <q-btn
             round
             dense
@@ -95,6 +171,7 @@
           />
         </div>
       </div>
+      <div id="scrollPage"></div>
     </q-scroll-area>
   </q-page>
 </template>
@@ -107,7 +184,10 @@ import {
   query,
   onSnapshot,
   addDoc,
+  setDoc,
+  getDoc,
   limit,
+  doc,
   where,
 } from "firebase/firestore";
 import {
@@ -129,7 +209,7 @@ import db, { auth, database } from "../boot/firebase";
 import { formatDistance } from "date-fns";
 
 const messageRef = ref("");
-const scrollPage = ref("");
+const scrollPage = ref();
 
 export default {
   name: "MessageView",
@@ -141,10 +221,12 @@ export default {
       myName: "",
       username: "",
       receiverID: "",
-      userID: "",
+      myID: auth.currentUser.uid,
+      theirUsername: "",
       photoUrl: "",
       sender: false,
       message: "",
+      chatID: "",
       date: 0,
       messageImg: "",
       messages: [],
@@ -158,71 +240,111 @@ export default {
     };
   },
   watch: {
-    messages: function (val) {
-      if (Object.keys(val).length) {
-        this.scrollToBottom();
-      }
+    messages() {
+      nextTick(() => {
+        this.scrollPageTo();
+      });
     },
   },
   methods: {
-    scrollToBottom() {
-      let scrollPage = this.$refs.scrollPage.$el;
-      setTimeout(() => {
-        window.scrollTo(0, scrollPage.scrollHeight);
-      }, 20);
+    scrollPageTo() {
+      let element = document.querySelector(`#scrollPage`);
+      element.scrollIntoView({
+        behavior: "smooth",
+      });
+    },
+    handleRedirect(message) {
+      this.$router.push("/profile/" + message.receiverUsername);
     },
     sendMessage() {
       const myID = auth.currentUser.uid;
 
-      const newMessageContent = {
-        content: this.content,
-        date: Date.now(),
-        senderID: myID,
-        receiverID: this.receiverID,
-        receiverVerified: this.verified,
-        senderName: this.theirName,
-        image: this.theirImage,
-        displayName: this.myName,
-      };
-      const db2 = getDatabase();
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${this.receiverID}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            console.log(snapshot.val());
+            this.username = snapshot.val().username;
+            this.theirName = snapshot.val().displayName;
+            this.theirUsername = snapshot.val().username;
+            this.theirImage = snapshot.val().image;
+            this.verified = snapshot.val().verified;
 
-      addDoc(collection(db, `messages/`), newMessageContent);
-      this.content = "";
+            const newMessageContent = {
+              content: this.content,
+              date: Date.now(),
+              senderID: myID,
+              receiverID: this.receiverID,
+              receiverVerified: this.verified,
+              receiverUsername: this.theirUsername,
+              senderName: this.myName,
+              image: this.myImage,
+              displayName: this.theirName,
+            };
+
+            addDoc(
+              collection(db, `chats/${this.chatID}/messages`),
+              newMessageContent
+            );
+
+            setDoc(
+              doc(db, `chats/${this.chatID}`),
+              { lastMessage: this.content },
+              { merge: true }
+            );
+            this.content = "";
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
     },
     getMessages() {
       const myID = auth.currentUser.uid;
-      const receiverID = this.$route.params.theirID;
-      this.receiverID = receiverID;
 
-      const q = query(collection(db, "messages"), orderBy("date"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          const changeData = change.doc.data();
-          changeData.id = change.doc.id;
-          this.messageID = changeData.id;
+      const getAllMessages = query(
+        collection(db, "chats/" + this.chatID + "/messages"),
+        orderBy("date", "desc")
+      );
+      const unsubscribe = onSnapshot(getAllMessages, (snapshot) => {
+        this.messages = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .reverse();
+        snapshot.docChanges().forEach(async (change) => {
+          let messageChange = change.doc.data();
+          messageChange.id = change.doc.id;
 
           if (change.type === "added") {
-            this.creatorID = changeData.creatorId;
-            this.messages.push(changeData);
+            this.theirUsername = messageChange.receiverUsername;
+            this.theirName = messageChange.receiverName;
+            this.creatorImage = messageChange.image;
+            this.verified = messageChange.receiverVerified;
+            this.postImage = messageChange.postImg;
+            this.theirImage = messageChange.image;
+            this.messageID = messageChange.id;
+            this.date = messageChange.date;
+            this.message = messageChange.content;
             this.areThereMessages = true;
-            // Object.keys(data).forEach((key) => {
-            //   this.messages.push({
-            //     id: key,
-            //     content: data[key].content,
-            //     date: data[key].date,
-            //     image: data[key].image,
-            //     displayName: data[key].displayName,
-            //   });
-            // });
+
+            if (messageChange.senderID === myID) {
+              this.sender = false;
+            } else {
+              this.sender = true;
+            }
           }
         });
       });
     },
   },
-  mounted() {
+  async mounted() {
+    this.chatID = this.$route.params.chatID;
     const myID = auth.currentUser.uid;
 
-    const receiverID = this.$route.params.theirID;
+    const id = this.$route.params.chatID;
+    const getReceiverID = await getDoc(doc(db, "chats/" + id));
+    this.receiverID = getReceiverID.data().receiverID;
 
     const db2 = getDatabase();
     const userQ = dbQuery(dbRef(db2, "users"));
@@ -230,14 +352,14 @@ export default {
       if (snapshot.exists()) {
         const key = Object.keys(snapshot.val());
         const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${receiverID}`))
+        get(child(dbReff, `users/${this.receiverID}`))
           .then((snapshot) => {
             if (snapshot.exists()) {
               this.username = snapshot.val().username;
               this.theirName = snapshot.val().displayName;
+              this.theirUsername = snapshot.val().username;
               this.theirImage = snapshot.val().image;
               this.verified = snapshot.val().verified;
-              this.receiverID = receiverID;
             } else {
               console.log("No data available");
             }
@@ -252,7 +374,6 @@ export default {
               this.myName = snapshot.val().displayName;
               this.myImage = snapshot.val().image;
               this.ImVerified = snapshot.val().verified;
-              this.userID = myID;
             } else {
               console.log("No data available");
             }
@@ -273,6 +394,11 @@ export default {
 }
 .hideWhenNotVerified {
   display: none;
+}
+.q-message-avatar {
+  object-fit: cover;
+  margin-right: 5px;
+  margin-bottom: 7px;
 }
 .showWhenVerified {
   margin-top: -3px;
@@ -303,7 +429,13 @@ export default {
   margin-right: 10px;
   padding: 15px;
 }
-
+.YouSentIt {
+  background-color: $grey-10;
+  max-width: 20em;
+  border-radius: 10px;
+  margin-right: 10px;
+  padding: 15px;
+}
 .spacious {
   padding-bottom: 90px;
 }

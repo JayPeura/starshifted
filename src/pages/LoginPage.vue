@@ -19,7 +19,7 @@
             >
               <q-tooltip> Registration of a new user </q-tooltip>
             </q-fab>
-            <q-form class="q-px-sm q-pt-xl">
+            <q-form @keyup.enter="submit" class="q-px-sm q-pt-xl">
               <q-input
                 ref="email"
                 square

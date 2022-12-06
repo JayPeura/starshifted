@@ -13,37 +13,69 @@
             borderless
             v-model="searchUsers"
             class="searchInput"
-            value=""
             :bg-color="$q.dark.isActive ? 'transparent' : 'transparent'"
-            @keydown.enter="handleSearch"
+            @keydown.enter="handleSearch(value)"
           />
         </div>
       </div>
       <div class="full-width">
-        <q-list>
+        <q-list v-for="user in users" :key="user.id">
           <q-item
-            v-for="(user, id) in users"
-            :key="id"
-            :to="'/messages/' + id"
+            v-if="user.value.displayName"
+            @click="handleRedirect(user)"
             class="q-my-md"
             clickable
           >
             <q-item-section avatar>
               <q-avatar size="xl">
-                <img v-bind:src="user.image" class="avatar" />
+                <img v-bind:src="user.value.image" class="avatar" />
               </q-avatar>
             </q-item-section>
 
             <q-item-section>
               <q-item-label
-                >{{ user.displayName }}
+                >{{ user.value.displayName }}
                 <q-icon
-                  :name="user.verified ? 'verified' : ''"
+                  :name="user.value.verified ? 'verified' : ''"
                   :class="
-                    user.verified ? 'showWhenVerified' : 'hideWhenNotVerified'
+                    user.value.verified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
                   "
               /></q-item-label>
-              <q-item-label caption lines="2">{{ user.content }}</q-item-label>
+              <q-item-label v-if="user.value.displayName" caption lines="2">{{
+                user.value.bio
+              }}</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-list>
+        <q-list v-for="chat in chats" :key="chat.id">
+          <q-item
+            v-if="chat.data.lastMessage"
+            @click="handleChat(chat)"
+            class="q-my-md"
+            clickable
+          >
+            <q-item-section avatar>
+              <q-avatar size="xl">
+                <img v-bind:src="chat.userImage" class="avatar" />
+              </q-avatar>
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label
+                >{{ chat.userDisplayName }}
+                <q-icon
+                  :name="chat.userVerified ? 'verified' : ''"
+                  :class="
+                    chat.userVerified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
+                  "
+              /></q-item-label>
+              <q-item-label caption lines="2">{{
+                chat.data.lastMessage
+              }}</q-item-label>
             </q-item-section>
           </q-item>
         </q-list>
@@ -59,10 +91,13 @@ import {
   orderBy,
   query,
   onSnapshot,
+  getDocs,
+  setDoc,
+  getDoc,
+  where,
   addDoc,
   doc,
   updateDoc,
-  limit,
 } from "firebase/firestore";
 import {
   ref as dbRef,
@@ -75,6 +110,7 @@ import {
   query as dbQuery,
   equalTo,
   orderByChild,
+  orderByValue,
 } from "firebase/database";
 import db, { auth, database } from "../boot/firebase";
 import { formatDistance } from "date-fns";
@@ -98,53 +134,148 @@ export default {
       receiverID: "",
       userID: "",
       users: [],
+      chats: [],
       myMessages: [],
       messageContent: "",
       myImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
+      theirImage:
+        "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
     };
   },
+  watch: {
+    searchUsers(value) {
+      this.handleSearch(value);
+    },
+  },
   methods: {
-    async handleSearch(val) {
-      const usernameRef = dbRef(database, "users");
-      onValue(usernameRef, (snapshot) => {
-        snapshot.forEach((childSnapshot) => {
-          const childKey = childSnapshot.key;
-          const childData = childSnapshot.val();
-          this.users.push({ id: childKey, data: childData });
-          console.log(toRaw(this.users));
+    getChatImage() {},
+    async handleSearch(value) {
+      const db2 = getDatabase();
+
+      if (this.searchUsers === "") {
+        return;
+      } else {
+        const userQ = dbQuery(
+          dbRef(db2, "users"),
+          orderByChild("username"),
+          equalTo(value)
+        );
+        get(userQ).then((snapshot) => {
+          if (snapshot.exists()) {
+            const key = snapshot.key;
+            const data = snapshot.val();
+
+            this.users = Object.entries(data, key).map(([id, value]) => ({
+              id,
+              value,
+            }));
+            // this.users = Object.keys(data).map(function (key) {
+            //   return { [data]: data[key] };
+            // });
+            // console.log(toRaw(this.users));
+          }
         });
-      });
+      }
+    },
+    async handleRedirect(user) {
+      const querySnapshot = await getDocs(collection(db, "chats"));
+      if (!querySnapshot.empty) {
+        querySnapshot.forEach(async (docs) => {
+          const data = docs.data();
+          const id = docs.id;
+
+          // WORK ON THIS!!!!!
+          const receiverList = await getDocs(
+            query(
+              collection(db, "chats/" + id + "/messages"),
+              where("receiverID", "==", user.id)
+            )
+          );
+          const senderList = await getDocs(
+            query(
+              collection(db, "chats/" + id + "/messages"),
+              where("senderID", "==", user.id)
+            )
+          );
+          if (receiverList.empty && senderList.empty) {
+            console.log("No chat records found");
+            // await addDoc(collection(db, "chats"), {
+            //   lastMessage: "",
+            //   receiverID: user.id,
+            // }).then((docRef) => {
+            //   this.$router.push("/messages/" + docRef.id);
+            // });
+          } else {
+            console.log("Either list has data");
+            return;
+          }
+        });
+      } else {
+        console.log("No data yet, creating...");
+        await addDoc(collection(db, "chats"), {
+          lastMessage: "",
+          receiverID: user.id,
+        }).then((docRef) => {
+          this.$router.push("/messages/" + docRef.id);
+        });
+      }
+      this.searchUsers = "";
+    },
+    handleChat(chat) {
+      this.$router.push("/messages/" + chat.id);
+    },
+    async getChats() {
+      const querySnapshot = await getDocs(collection(db, "chats"));
+      if (!querySnapshot.empty) {
+        querySnapshot.forEach(async (chats) => {
+          const id = chats.id;
+          const data = chats.data();
+
+          this.chats.push({ id: id, data: data });
+
+          // console.log(toRaw(this.chats));
+          if (id) {
+            const messageSnapshot = await getDocs(
+              collection(db, "chats/" + id + "/messages")
+            );
+
+            if (messageSnapshot.empty) {
+              console.log(
+                "Empty... Populating by one (1) empty message. Ignore this."
+              );
+              await addDoc(collection(db, "chats/" + id + "/messages"), {
+                content: "",
+              });
+            } else {
+              // const unsub = onSnapshot(doc(db, "chats", id), (doc) => {
+              //   console.log(doc.data());
+              //   console.log(toRaw(this.chats));
+              // });
+
+              // const getMessages = await getDoc(doc(db, "chats/" + id));
+              // getMessages.forEach((message) => {
+              //   const key = message.id;
+              //   const data = message.data();
+              //   this.chats.push(data);
+
+              //   // console.log(toRaw(this.chats));
+              // });
+              return () => {
+                unsub();
+              };
+            }
+          }
+        });
+      } else {
+        console.log("No data");
+      }
     },
   },
   mounted() {
     this.userID = auth.currentUser.uid;
 
-    const db2 = getDatabase();
-    const userQ = dbQuery(dbRef(db2, "users"));
-    get(userQ).then((snapshot) => {
-      if (snapshot.exists()) {
-        const key = Object.keys(snapshot.val());
-        const data = snapshot.val();
-        const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${this.receiverID}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.receiverUsername = snapshot.val().username;
-              this.receiverName = snapshot.val().displayName;
-              this.receiverImage = snapshot.val().image;
-              this.receiverVerified = snapshot.val().verified;
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
-      }
-    });
-
-    this.handleSearch();
+    this.getChats();
   },
 };
 </script>
