@@ -243,8 +243,8 @@ export default {
               username: this.$refs.username.modelValue,
               email: this.$refs.email.modelValue,
               displayName: this.$refs.displayname.modelValue,
-              [`followers/${user.uid}`]: false,
-              [`following/${user.uid}`]: false,
+              followers: { [`${user.uid}`]: false },
+              following: { [`${user.uid}`]: false },
               image: this.image,
               verified: false,
               followed: false,
@@ -290,7 +290,7 @@ export default {
                 this.$emit("logged-in", this.loggedIn);
                 setTimeout(() => {
                   this.$router.push("/");
-                }, 200);
+                }, 20);
               })
               .catch((error) => {
                 // The write failed...

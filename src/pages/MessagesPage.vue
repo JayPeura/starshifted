@@ -4,6 +4,14 @@
       :visible="false"
       class="absolute full-width full-height q-pa-md"
     >
+      <div class="q-pa-md">
+        <q-toolbar class="primary">
+          <div class="row absolute-center">
+            <q-icon size="sm" class="makeMeLower" name="chat"></q-icon>
+            <q-toolbar-title> Your chats </q-toolbar-title>
+          </div>
+        </q-toolbar>
+      </div>
       <div class="search">
         <div class="searchForm">
           <q-icon name="search" size="md" class="searchIcon" />
@@ -19,7 +27,12 @@
         </div>
       </div>
       <div class="full-width">
-        <q-list v-for="user in users" :key="user.id">
+        <q-list
+          v-for="user in users"
+          :key="user.id"
+          bordered
+          class="q-mb-sm q-mt-sm"
+        >
           <q-item
             v-if="user.value.displayName"
             @click="handleRedirect(user)"
@@ -27,8 +40,8 @@
             clickable
           >
             <q-item-section avatar>
-              <q-avatar size="xl">
-                <img v-bind:src="user.value.image" class="avatar" />
+              <q-avatar round size="xl">
+                <q-img v-bind:src="user.value.image" />
               </q-avatar>
             </q-item-section>
 
@@ -49,31 +62,41 @@
             </q-item-section>
           </q-item>
         </q-list>
+
         <q-list v-for="chat in chats" :key="chat.id">
           <q-item
-            v-if="myID === chat.senderID"
+            :key="componentKey"
+            v-if="myID === chat.senderID || myID === chat.receiverID"
             @click="handleChat(chat)"
             class="q-my-md"
             clickable
           >
             <q-item-section avatar>
-              <q-avatar size="xl">
-                <img
+              <q-avatar round size="xl">
+                <q-img
                   v-bind:src="
-                    myID === chat.senderID ? chat.theirImage : chat.myImage
+                    chat.myUsername === myUsername
+                      ? chat.theirImage
+                      : chat.myImage
                   "
-                  class="avatar"
                 />
               </q-avatar>
             </q-item-section>
 
             <q-item-section>
-              <q-item-label class="text-subtitle2"
+              <q-item-label
+                v-if="myID === chat.senderID || myID === chat.receiverID"
+                class="text-subtitle2"
                 ><strong>{{
-                  myID === chat.senderID ? chat.theirName : chat.myName
+                  chat.myUsername === myUsername ? chat.theirName : chat.myName
                 }}</strong>
                 <q-icon
-                  :name="chat.theyVerified ? 'verified' : ''"
+                  :name="
+                    theyVerified === chat.theyVerified &&
+                    myVerified === chat.theyVerified
+                      ? 'verified'
+                      : ''
+                  "
                   :class="
                     chat.theyVerified
                       ? 'showWhenVerified'
@@ -81,60 +104,8 @@
                   "
                 />
                 <span class="text-grey-7">
-                  @{{ chat.theirUsername }}
-                  &bull;
-                  <br class="lt-md" />
-                </span>
-                <span class="text-grey-7">
-                  {{
-                    formatDistance(chat.lastMessageAt, new Date(), {
-                      addSuffix: true,
-                    })
-                  }}</span
-                >
-              </q-item-label>
-              <q-item-label caption lines="2">{{
-                chat.lastMessage
-              }}</q-item-label>
-            </q-item-section>
-          </q-item>
-          <q-item
-            v-if="chat.receiverID === myID"
-            @click="handleChat(chat)"
-            class="q-my-md"
-            clickable
-          >
-            <q-item-section avatar>
-              <q-avatar size="xl">
-                <img
-                  v-bind:src="
-                    myID === chat.senderID ? chat.theirImage : chat.myImage
-                  "
-                  class="avatar"
-                />
-              </q-avatar>
-            </q-item-section>
-
-            <q-item-section>
-              <q-item-label class="text-subtitle2"
-                ><strong>{{
-                  myID === chat.senderID ? chat.theirName : chat.myName
-                }}</strong>
-                <q-icon
-                  :name="
-                    myID === chat.senderID && chat.theyVerified
-                      ? 'verified'
-                      : ''
-                  "
-                  :class="
-                    myID === chat.senderID && chat.theyVerified
-                      ? 'showWhenVerified'
-                      : 'hideWhenNotVerified'
-                  "
-                />
-                <span class="text-grey-7">
                   @{{
-                    myID === chat.senderID
+                    chat.myUsername === myUsername
                       ? chat.theirUsername
                       : chat.myUsername
                   }}
@@ -149,9 +120,10 @@
                   }}</span
                 >
               </q-item-label>
-              <q-item-label caption lines="2">{{
-                chat.lastMessage
-              }}</q-item-label>
+              <q-item-label caption lines="2"
+                ><strong v-if="chat.myUsername === myUsername">You: </strong
+                >{{ chat.lastMessage }}</q-item-label
+              >
             </q-item-section>
           </q-item>
         </q-list>
@@ -207,6 +179,7 @@ export default {
       searchUsers: searchUsersRef,
       myName: "",
       theirName: "",
+      componentKey: 0,
       myUsername: "",
       theirUsername: "",
       theyVerified: false,
@@ -229,11 +202,11 @@ export default {
     },
   },
   methods: {
-    getChatImage() {},
     async handleSearch(value) {
       const db2 = getDatabase();
 
       if (this.searchUsers === "") {
+        this.users = [];
         return;
       } else {
         const userQ = dbQuery(
@@ -250,6 +223,7 @@ export default {
               id,
               value,
             }));
+
             // this.users = Object.keys(data).map(function (key) {
             //   return { [data]: data[key] };
             // });
@@ -324,42 +298,29 @@ export default {
     async getChats() {
       const myID = auth.currentUser.uid;
 
-      const receiverList = await getDocs(
-        fsQuery(
-          collection(db, "chats/"),
-          orderBy("lastMessageAt", "desc"),
-          where("receiverID", "in", [this.userID, myID])
-        )
-      );
-
-      if (!receiverList.empty) {
-        receiverList.forEach(async (receiver) => {
-          const receiverID = receiver.data().receiverID;
-          const senderID = receiver.data().senderID;
-          const id = receiver.id;
-          if (receiverID === myID || senderID === myID) {
-            if (senderID === this.userID) {
-            } else {
-            }
-          } else if (receiverID === this.userID || senderID === this.userID) {
-          } else {
-            console.log("No chats with these ID's yet made.");
-          }
-        });
-      } else {
-        console.log("No data yet, creating...");
-      }
-
       const receiverQuery = await fsQuery(
         collection(db, "chats/"),
-        orderBy("lastMessageAt")
+        orderBy("lastMessageAt", "asc")
       );
-      const unsubscribe = onSnapshot(receiverQuery, (querySnapshot) => {
-        querySnapshot.forEach((chats) => {
-          const id = chats.id;
-          const data = chats.data();
 
-          this.chats.unshift(data);
+      const unsubscribe = onSnapshot(receiverQuery, (querySnapshot) => {
+        querySnapshot.docChanges().forEach((chats) => {
+          let data = chats.doc.data();
+          data.id = chats.doc.id;
+
+          if (chats.type === "added") {
+            this.chats.unshift(data);
+          }
+          if (chats.type === "modified") {
+            let index = this.chats.findIndex((chat) => chat.id === data.id);
+            this.chats.splice(index, 1);
+            this.chats.splice(0, 0, data);
+            this.componentKey += 1;
+          }
+          if (chats.type === "removed") {
+            let index = this.chats.findIndex((chat) => chat.id === data.id);
+            this.chats.splice(index, 1);
+          }
         });
       });
     },
@@ -417,7 +378,9 @@ export default {
 .hideWhenNotVerified {
   display: none;
 }
-
+.alignMe {
+  text-align: center;
+}
 .searchForm {
   display: flex;
   justify-content: center;
@@ -429,7 +392,9 @@ export default {
 .searchInput {
   width: 93%;
 }
-
+.makeMeLower {
+  margin-top: 5px;
+}
 .showWhenVerified {
   margin-top: -3px;
   margin-right: 3px;

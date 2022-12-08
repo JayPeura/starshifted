@@ -20,7 +20,7 @@
             :name="theyVerified ? 'verified' : ''"
             :class="theyVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
           />
-          <span class="styleUsername">@{{ username }}</span>
+          <span class="styleUsername">@{{ theirUsername }}</span>
         </h5>
         <p style="width: 100%; text-align: center">Send them a message!</p>
       </div>

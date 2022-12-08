@@ -1,5 +1,5 @@
 <template>
-  <q-page>
+  <q-page padding>
     <h5 class="q-ml-xl">Hello {{ currName }}!</h5>
 
     <h6 class="q-ml-xl">Your current username is @{{ currUsername }}</h6>

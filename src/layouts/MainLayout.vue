@@ -69,6 +69,14 @@
         </q-item>
 
         <q-item :to="'/notifications'" clickable v-ripple exact>
+          <q-badge
+            v-if="notificationsCount > 0"
+            rounded
+            floating
+            color="red"
+            class="notifications"
+          />
+
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -76,26 +84,17 @@
               size="md"
             />
           </q-item-section>
-          <span
-            :class="
-              notifications && notificationsCount > 0
-                ? 'notifications'
-                : 'noNotifications'
-            "
-            ><span
-              :class="notificationsCount >= 10 ? 'noNotifications' : ''"
-              style="
-                width: 20px;
-                height: 20px;
-                margin-right: -9px;
-                float: right;
-              "
-              >{{ notificationsCount }}</span
-            ></span
-          >
+
           <q-item-section class="text-h6">Notifications</q-item-section>
         </q-item>
         <q-item :to="'/messages'" clickable v-ripple exact>
+          <q-badge
+            v-if="messagesCount > 0"
+            rounded
+            floating
+            color="red"
+            class="messages"
+          />
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -106,6 +105,7 @@
 
           <q-item-section class="text-h6">Messages</q-item-section>
         </q-item>
+
         <q-item to="/settings" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
@@ -156,7 +156,6 @@
                   size="md"
                 />
               </q-item-section>
-
               <q-item-section class="text-h6"
                 >{{ loggedIn ? "Log out" : "Log in / Sign up"
                 }}<span :class="loggedIn ? 'text-h6 nextToLogout' : 'noLogout'"
@@ -191,7 +190,7 @@
           <q-item-section>
             <q-item-label overline class="text-grey">Animals</q-item-label>
             <q-item-label class="text-weight-bold"
-              >Cat's are at it again!</q-item-label
+              >Cats are at it again!</q-item-label
             >
             <q-item-label caption
               >Secondary line text. Lorem ipsum dolor sit amet, consectetur
@@ -222,7 +221,7 @@
           <q-item-section>
             <q-item-label overline class="text-grey">Animals</q-item-label>
             <q-item-label class="text-weight-bold"
-              >Cat's are at it again!</q-item-label
+              >Cats are at it again!</q-item-label
             >
             <q-item-label caption
               >Secondary line text. Lorem ipsum dolor sit amet, consectetur
@@ -238,8 +237,10 @@
     </q-drawer>
 
     <q-page-container>
-      <router-view v-slot="{ Component }">
-        <keep-alive><component :is="Component" /></keep-alive
+      <router-view :key="$route.url" v-slot="{ Component }">
+        <keep-alive
+          ><transition name="fade" mode="out-in">
+            <component :is="Component" /> </transition></keep-alive
       ></router-view>
     </q-page-container>
   </q-layout>
@@ -261,13 +262,9 @@ export default {
       darkMode: false,
       notifications: true,
       notificationsCount: 0,
+      messagesCount: 0,
       userID: "",
     };
-  },
-  watch: {
-    $route(to, from) {
-      this.$router.go();
-    },
   },
   setup() {
     const leftDrawerOpen = ref(false);
@@ -291,6 +288,13 @@ export default {
         rightDrawerOpen.value = !rightDrawerOpen.value;
       },
     };
+  },
+  watch: {
+    $route(to, from) {
+      if (from.path === "/login") {
+        this.loggedIn = true;
+      }
+    },
   },
   methods: {
     loginHandler() {
@@ -377,15 +381,17 @@ a.q-router-link--active {
 }
 .notifications {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 10px;
   top: 7px;
-  left: 34px;
-  border-radius: 50%;
-  background-color: red;
-  font-weight: bolder;
-  font-size: 14px;
-  color: $secondary;
+  z-index: 1;
+  left: 35px;
+}
+.messages {
+  position: absolute;
+  width: 10px;
+  top: 7px;
+  z-index: 1;
+  left: 41px;
 }
 .noNotifications {
   display: none;

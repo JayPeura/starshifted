@@ -2,13 +2,12 @@
   <q-page class="relative-position">
     <q-scroll-area class="absolute full-width full-height">
       <div v-if="!postDeleted">
-        <q-item class="q-py-md">
+        <q-item v-for="post in posts" :key="post.id" class="q-py-md">
           <q-item-section avatar top>
             <label for="actual-btn" class="clickableLabel">
-              <q-avatar size="xl">
-                <img
-                  v-bind:src="posterImage"
-                  class="avatar"
+              <q-avatar round size="xl">
+                <q-img
+                  v-bind:src="post.creatorImage"
                   for="actual-btn"
                 /> </q-avatar
             ></label>
@@ -19,26 +18,28 @@
           <q-item-section>
             <q-item-label class="text-subtitle1"
               ><strong @click="handleRedirect" class="clickableLabel">{{
-                posterName
+                post.creatorDisplayname
               }}</strong>
               <q-icon
-                :name="posterVerified ? 'verified' : ''"
+                :name="post.isUserVerified ? 'verified' : ''"
                 :class="
-                  posterVerified ? 'showWhenVerified' : 'hideWhenNotVerified'
+                  post.isUserVerified
+                    ? 'showWhenVerified'
+                    : 'hideWhenNotVerified'
                 "
               />
               <span class="text-grey-7">
-                @{{ posterUsername }}
+                @{{ post.creatorUsername }}
                 &bull;
                 <br class="lt-md" />
               </span>
               <span class="text-grey-7">
-                {{ formatDistance(posterDate, new Date()) }}</span
+                {{ formatDistance(post.date, new Date()) }}</span
               >
             </q-item-label>
             <q-item-label class="post-content text-body1">
-              {{ posterContent }}
-              <img :src="postImage" class="postImage" />
+              {{ post.content }}
+              <img :src="post.postImg" class="postImage" />
             </q-item-label>
             <div class="postMenu row justify-between q-mt-sm">
               <q-btn flat round icon="more_horiz" size="13px">
@@ -46,8 +47,8 @@
                   <q-list style="min-width: 100px">
                     <q-item
                       clickable
-                      @click="deletePost"
-                      v-if="this.posterID === myID"
+                      @click="deletePost(post)"
+                      v-if="post.creatorId === myID"
                     >
                       <q-item-section>Delete post</q-item-section>
                     </q-item>
@@ -67,16 +68,16 @@
               <q-btn
                 flat
                 round
-                @click="togglePostLiked"
-                :color="postLiked ? 'red' : 'grey'"
-                :icon="postLiked ? 'favorite' : 'favorite_border'"
+                @click="togglePostLiked(post)"
+                :color="post.whoLiked[myID] ? 'red' : 'grey'"
+                :icon="post.whoLiked[myID] ? 'favorite' : 'favorite_border'"
                 size="sm"
               >
                 <span class="postLikes">
                   {{
                     new Intl.NumberFormat("en-GB", {
                       notation: "compact",
-                    }).format(postLikes)
+                    }).format(post.likes)
                   }}
                 </span></q-btn
               >
@@ -108,8 +109,8 @@
             class="new-post"
           >
             <template v-slot:before>
-              <q-avatar size="xl">
-                <img v-bind:src="myImage" class="avatar" />
+              <q-avatar round size="xl">
+                <q-img v-bind:src="myImage" />
               </q-avatar>
             </template>
           </q-input>
@@ -145,8 +146,8 @@
             class="q-py-md"
           >
             <q-item-section avatar top>
-              <q-avatar size="xl">
-                <img v-bind:src="comment.creatorImage" class="avatar" />
+              <q-avatar round size="xl">
+                <q-img v-bind:src="comment.creatorImage" />
               </q-avatar>
             </q-item-section>
 
@@ -197,8 +198,10 @@
                   flat
                   round
                   @click="toggleLiked(comment)"
-                  :color="comment.liked ? 'red' : 'grey'"
-                  :icon="comment.liked ? 'favorite' : 'favorite_border'"
+                  :color="comment.whoLiked[myID] ? 'red' : 'grey'"
+                  :icon="
+                    comment.whoLiked[myID] ? 'favorite' : 'favorite_border'
+                  "
                   size="sm"
                 >
                   <span class="postLikes">
@@ -335,10 +338,6 @@ export default defineComponent({
     toggleLiked(comment) {
       const creatorID = auth.currentUser.uid;
 
-      if (comment.likerID) {
-        this.likerID = toRaw(comment.likerID.find((id) => id === creatorID));
-      }
-
       //check if likes are NaN and fix it
       if (isNaN(comment.likes)) {
         updateDoc(doc(db, `posts/${this.postID}/comments`, comment.id), {
@@ -346,34 +345,19 @@ export default defineComponent({
         });
       }
 
-      if (!this.likerID && !comment.likerID?.find((id) => id == creatorID)) {
-        this.likerID = creatorID;
-      }
-
-      if (
-        !comment.whoLiked[creatorID] &&
-        comment.liked === false &&
-        this.likerID === creatorID
-      ) {
-        this.isLiked = true;
+      if (!comment.whoLiked[creatorID]) {
         const updateData = {
           likes: comment.likes + 1,
           [`whoLiked.${creatorID}`]: !comment.liked,
-          likerID: arrayUnion(creatorID),
-          liked: !comment.liked,
         };
         updateDoc(
           doc(db, `posts/${this.postID}/comments`, comment.id),
           updateData
         );
       } else {
-        this.isLiked = false;
-
         const updateData = {
           likes: Math.max(0, comment.likes - 1),
           [`whoLiked.${creatorID}`]: !comment.liked,
-          likerID: arrayRemove(creatorID),
-          liked: !comment.liked,
         };
         updateDoc(
           doc(db, `posts/${this.postID}/comments`, comment.id),
@@ -382,140 +366,73 @@ export default defineComponent({
         this.likerID = "";
       }
     },
-    async togglePostLiked() {
+    togglePostLiked(post) {
       const creatorID = auth.currentUser.uid;
-      const certainPost = doc(db, "posts", this.postID);
-      const poster = await getDoc(certainPost);
-      if (poster.exists()) {
-        const post = poster.data();
-        //check if likes are NaN and fix it
-        if (isNaN(post.likes)) {
-          updateDoc(doc(db, "posts", this.postID), { likes: 0 });
-        }
-
-        if (!this.likerID && !post.likerID[creatorID]) {
-          updateDoc(doc(db, "posts/", this.postID), {
-            likerID: creatorID,
-          });
-          this.likerID = creatorID;
-        }
-
-        if (
-          !post.whoLiked[creatorID] &&
-          !post.liked &&
-          this.likerID === creatorID
-        ) {
-          this.postLiked = true;
-          this.postLikes = post.likes;
-
-          const updateData = {
-            likes: post.likes + 1,
-            [`whoLiked.${creatorID}`]: !post.liked,
-            likerID: arrayUnion(creatorID),
-            liked: !post.liked,
-          };
-          updateDoc(doc(db, "posts/", this.postID), updateData);
-          const getPost = doc(db, "posts", this.postID);
-          const posting = await getDoc(getPost);
-          if (posting.exists()) {
-            const post = posting.data();
-            this.postLikes = post.likes;
-          }
-        } else {
-          this.postLiked = false;
-
-          const updateData = {
-            likes: Math.max(0, post.likes - 1),
-            [`whoLiked.${creatorID}`]: !post.liked,
-            likerID: arrayRemove(creatorID),
-            liked: !post.liked,
-          };
-          updateDoc(doc(db, "posts/", this.postID), updateData);
-
-          this.likerID = "";
-          const getPost = doc(db, "posts", this.postID);
-          const posting = await getDoc(getPost);
-          if (posting.exists()) {
-            const post = posting.data();
-            this.postLikes = post.likes;
-          }
-        }
+      console.log(post);
+      //check if likes are NaN and fix it
+      if (isNaN(post.likes)) {
+        updateDoc(doc(db, "posts", post.id), { likes: 0 });
+      }
+      if (!post.whoLiked[creatorID]) {
+        const updateData = {
+          likes: post.likes + 1,
+          [`whoLiked.${creatorID}`]: true,
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (post.whoLiked[creatorID]) {
+        const updateData = {
+          likes: Math.max(0, post.likes - 1),
+          [`whoLiked.${creatorID}`]: false,
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+        this.likerID = "";
       }
     },
     async getPostLiked() {
       const creatorID = auth.currentUser.uid;
-      const certainPost = doc(db, "posts", this.postID);
-      const poster = await getDoc(certainPost);
+      const newQuerySnapshot = await getDocs(collection(db, `posts/`));
+      newQuerySnapshot.forEach((post) => {
+        const postData = post.data();
 
-      if (poster.exists()) {
-        const post = poster.data();
-        this.postLikes = post.likes;
-        this.whoLiked = post.whoLiked;
-        this.postLiked = post.liked;
-        this.likerID = post.likerID;
-
-        if (
-          post.whoLiked[creatorID] &&
-          post.likerID?.find((id) => id === creatorID)
-        ) {
-          this.likerID = post.likerID;
-          this.postLiked = true;
+        if (postData.whoLiked[creatorID]) {
           const updateData = {
-            likerID: arrayUnion(creatorID),
-            [`whoLiked.${creatorID}`]: this.postLiked,
-            liked: this.postLiked,
-            likes: this.postLikes,
+            [`whoLiked.${creatorID}`]: true,
+            likes: postData.likes,
           };
-          updateDoc(doc(db, "posts/", this.postID), updateData);
+          updateDoc(doc(db, "posts/", post.id), updateData);
         } else {
-          this.likerID = creatorID;
-          this.postLiked = false;
           const updateData = {
-            likerID: arrayRemove(creatorID),
-            [`whoLiked.${creatorID}`]: this.postLiked,
-            liked: this.postLiked,
-            likes: this.postLikes,
+            [`whoLiked.${creatorID}`]: false,
+            likes: postData.likes,
           };
-          updateDoc(doc(db, "posts/", this.postID), updateData);
+          updateDoc(doc(db, "posts/", post.id), updateData);
         }
-      }
+      });
     },
     async getLiked() {
       const creatorID = auth.currentUser.uid;
-
       const newQuerySnapshot = await getDocs(
         collection(db, `posts/${this.postID}/comments`)
       );
       newQuerySnapshot.forEach((post) => {
         const postData = post.data();
-        this.commentID = post.id;
-        if (
-          postData.whoLiked[creatorID] &&
-          postData.likerID?.find((id) => id === creatorID)
-        ) {
-          this.likerID = postData.likerID;
-          this.commentLiked = true;
+
+        if (postData.whoLiked[creatorID]) {
           const updateData = {
-            likerID: arrayUnion(creatorID),
-            [`whoLiked.${creatorID}`]: this.commentLiked,
-            liked: this.commentLiked,
+            [`whoLiked.${creatorID}`]: true,
             likes: postData.likes,
           };
           updateDoc(
-            doc(db, `posts/${this.postID}/comments`, this.commentID),
+            doc(db, "posts/" + this.postID + "/comments", post.id),
             updateData
           );
         } else {
-          this.likerID = creatorID;
-          this.commentLiked = false;
           const updateData = {
-            likerID: arrayRemove(creatorID),
-            [`whoLiked.${creatorID}`]: this.commentLiked,
-            liked: this.commentLiked,
+            [`whoLiked.${creatorID}`]: false,
             likes: postData.likes,
           };
           updateDoc(
-            doc(db, `posts/${this.postID}/comments`, this.commentID),
+            doc(db, "posts/" + this.postID + "/comments", post.id),
             updateData
           );
         }
@@ -535,23 +452,15 @@ export default defineComponent({
       });
     }
 
-    const certainPost = doc(db, "posts", this.postID);
-    const poster = await getDoc(certainPost);
+    const unsub = onSnapshot(doc(db, "posts", this.postID), (poster) => {
+      if (poster.exists()) {
+        let post = poster.data();
+        post.id = poster.id;
 
-    if (poster.exists()) {
-      const post = poster.data();
-      this.posterName = post.creatorDisplayname;
-      this.posterUsername = post.creatorUsername;
-      this.posterImage = post.creatorImage;
-      this.posterContent = post.content;
-      this.posterVerified = post.isUserVerified;
-      this.postImage = post.postImg;
-      this.postLikes = post.likes;
-      this.posterID = post.creatorId;
-      this.whoLiked = post.whoLiked;
-      this.postLiked = post.liked;
-      this.likerID = post.likerID;
-    }
+        this.posts = { post: post };
+      }
+    });
+
     const q = query(
       collection(db, `posts/${this.postID}/comments`),
       orderBy("date")
@@ -618,6 +527,7 @@ export default defineComponent({
     });
     this.getLiked();
     this.getPostLiked();
+
     const docRef = doc(db, "posts", this.postID);
     const docSnap = await getDoc(docRef);
 
@@ -627,12 +537,13 @@ export default defineComponent({
       this.posterUsername = docSnapData.creatorUsername;
       this.posterName = docSnapData.creatorDisplayname;
       this.posterImage = docSnapData.creatorImage;
+      this.postImage = docSnapData.postImg;
       this.posterDate = docSnapData.date;
       this.postLiked = docSnapData.liked;
       this.posterVerified = docSnapData.isUserVerified;
     }
 
-    if (this.posterContent === "") {
+    if (this.posterContent === "" && this.postImage === undefined) {
       this.postDeleted = true;
     } else {
       this.postDeleted = false;
@@ -730,11 +641,23 @@ export default defineComponent({
   margin-top: 10px;
 }
 .postImage {
-  width: 200px;
-  height: 200px;
+  width: auto;
+  height: auto;
+  max-width: 450px;
+  max-height: 400px;
   margin-bottom: 15px;
   margin-top: 10px;
   display: flex;
+}
+@media only screen and (min-device-width: 320px) and (max-device-width: 480px) {
+  .postImage {
+    width: 200px;
+  }
+}
+@media screen and (min-width: 1204px) {
+  .postImage {
+    width: 200px;
+  }
 }
 img[src=""] {
   display: none;

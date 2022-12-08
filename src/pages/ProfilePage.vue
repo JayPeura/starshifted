@@ -56,7 +56,7 @@
       />
 
       <q-dialog v-model="prompt" persistent>
-        <q-card style="min-width: 450px; min-height: 300px">
+        <q-card style="min-width: 350px; min-height: 300px">
           <q-card-section>
             <div class="text-h6">Edit profile</div>
           </q-card-section>
