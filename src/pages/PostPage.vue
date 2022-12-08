@@ -117,15 +117,43 @@
         </div>
         <div class="col col-shrink">
           <q-btn
+            icon="image"
+            round
+            dense
+            flat
+            class="q-mb-lg"
+            type="button"
+            @click="pickFile"
+          />
+          <q-file
+            style="display: none"
+            v-model="image"
+            accept=".jpg, .png, .gif, .jpeg, .svg"
+            @update:model-value="onFilePicked(e)"
+            ref="files"
+          >
+          </q-file>
+          <q-btn
             round
             dense
             flat
             @click="addNewPost"
             icon="send"
             class="q-mb-lg"
-            :disable="!newStarshiftingPost || postDeleted"
+            :disable="(!newStarshiftingPost && !image) || postDeleted"
           />
         </div>
+      </div>
+      <div :class="imageShow ? 'showwhenimage' : 'hidewhenimage'">
+        <q-img :src="imageUrl" class="imagePreview" ratio="1" />
+        <q-btn
+          round
+          dense
+          flat
+          icon="close"
+          :class="imageShow ? 'showwhenimagebtn' : 'hidewhenimagebtn'"
+          @click="cancelFileUpload"
+        ></q-btn>
       </div>
       <q-separator
         size="0.1px"
@@ -169,6 +197,7 @@
               </q-item-label>
               <q-item-label class="post-content text-body1">
                 {{ comment.content }}
+                <img :src="comment.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
                 <q-btn flat round icon="more_horiz" size="13px">
@@ -246,10 +275,18 @@ import {
 } from "firebase/firestore";
 import db, { auth, storage } from "src/boot/firebase";
 import { ref as dbRef, get, getDatabase, child } from "firebase/database";
-import { defineComponent, toRaw } from "vue";
+import { defineComponent, ref, toRaw } from "vue";
 import { formatDistance } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
-import { getDownloadURL, ref as stRef } from "firebase/storage";
+import {
+  getDownloadURL,
+  ref as stRef,
+  uploadBytesResumable,
+  uploadBytes,
+} from "firebase/storage";
+
+const imageRef = ref(null);
+const imageUrlRef = ref("");
 
 export default defineComponent({
   name: "HomePage",
@@ -273,28 +310,36 @@ export default defineComponent({
       userVerified: false,
       postLikes: 0,
       creatorID: "",
+      imageShow: false,
+      imageButtonShow: false,
+      imageUrl: imageUrlRef,
+      image: imageRef,
       postDeleted: false,
       likerID: "",
       whoLiked: [],
       postID: window.location.href.split("post/")[1],
       commentID: "",
-      posterName: "",
       posterUsername: "",
-      posterImage: "",
-      posterID: "",
-      posterContent: "",
-      posterVerified: false,
-      postLiked: false,
-      commentLiked: false,
-      posterDate: 0,
-      postIcon: "favorite_border",
-      postIconColor: "grey",
       myID: auth.currentUser.uid,
       isHidden: false,
     };
   },
   methods: {
-    addNewPost() {
+    cancelFileUpload() {
+      this.image = null;
+      this.imageUrl = "";
+      this.imageShow = false;
+      this.imageButtonShow = false;
+    },
+    pickFile() {
+      this.$refs.files.pickFiles();
+    },
+    async onFilePicked(e) {
+      this.imageUrl = URL.createObjectURL(this.image);
+      this.imageShow = true;
+      this.imageButtonShow = true;
+    },
+    async addNewPost() {
       const creatorID = auth.currentUser.uid;
       let newPost = {
         content: this.newStarshiftingPost,
@@ -307,6 +352,7 @@ export default defineComponent({
         whoLiked: {
           [`${creatorID}`]: false,
         },
+        postImg: this.imageUrl,
         isUserVerified: this.userVerified,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
@@ -317,12 +363,30 @@ export default defineComponent({
       // this.posts.unshift(newPost);
       if ((this.postID = window.location.href.split("post/")[1])) {
         addDoc(collection(db, `posts/${this.postID}/comments`), newPost);
+        if (this.image !== null) {
+          let uidDate = new Date().getTime();
+          const currentUser = auth.currentUser;
+          const metadata = {
+            contentType: this.image.type,
+          };
+
+          const fileRef = stRef(
+            storage,
+            "images/posts/" + currentUser.uid + uidDate
+          );
+
+          const uploadTask = await uploadBytes(fileRef, this.image, metadata);
+        }
+        this.imageShow = false;
+        this.imageButtonShow = false;
+        this.imageUrl = "";
+        this.image = null;
         this.newStarshiftingPost = "";
       }
     },
-    deletePost() {
-      if (auth.currentUser.uid === this.posterID) {
-        deleteDoc(doc(db, `posts/${this.postID}`));
+    deletePost(post) {
+      if (auth.currentUser.uid === post.creatorId) {
+        deleteDoc(doc(db, `posts/${post.id}`));
         this.postDeleted = true;
       } else {
         return;
@@ -348,7 +412,7 @@ export default defineComponent({
       if (!comment.whoLiked[creatorID]) {
         const updateData = {
           likes: comment.likes + 1,
-          [`whoLiked.${creatorID}`]: !comment.liked,
+          [`whoLiked.${creatorID}`]: true,
         };
         updateDoc(
           doc(db, `posts/${this.postID}/comments`, comment.id),
@@ -357,7 +421,7 @@ export default defineComponent({
       } else {
         const updateData = {
           likes: Math.max(0, comment.likes - 1),
-          [`whoLiked.${creatorID}`]: !comment.liked,
+          [`whoLiked.${creatorID}`]: false,
         };
         updateDoc(
           doc(db, `posts/${this.postID}/comments`, comment.id),
@@ -458,6 +522,12 @@ export default defineComponent({
         post.id = poster.id;
 
         this.posts = { post: post };
+
+        if (post.content === "" && post.postImg === undefined) {
+          this.postDeleted = true;
+        } else {
+          this.postDeleted = false;
+        }
       }
     });
 
@@ -533,21 +603,9 @@ export default defineComponent({
 
     const docSnapData = docSnap.data();
     if (docSnapData) {
-      this.posterContent = docSnapData.content;
       this.posterUsername = docSnapData.creatorUsername;
-      this.posterName = docSnapData.creatorDisplayname;
-      this.posterImage = docSnapData.creatorImage;
-      this.postImage = docSnapData.postImg;
-      this.posterDate = docSnapData.date;
-      this.postLiked = docSnapData.liked;
-      this.posterVerified = docSnapData.isUserVerified;
     }
 
-    if (this.posterContent === "" && this.postImage === undefined) {
-      this.postDeleted = true;
-    } else {
-      this.postDeleted = false;
-    }
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const userId = auth.currentUser.uid;
@@ -589,6 +647,16 @@ export default defineComponent({
 }
 .showwhenimage {
   margin-top: -45px;
+}
+.showwhenimagebtn {
+  position: relative;
+  z-index: 1;
+  margin-top: -120px;
+  margin-left: -10px;
+}
+
+.hidewhenimagebtn {
+  display: none;
 }
 .clickableLabel {
   cursor: pointer;

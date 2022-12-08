@@ -52,6 +52,14 @@
       </div>
       <div :class="imageShow ? 'showwhenimage' : 'hidewhenimage'">
         <q-img :src="imageUrl" class="imagePreview" ratio="1" />
+        <q-btn
+          round
+          dense
+          flat
+          icon="close"
+          :class="imageShow ? 'showwhenimagebtn' : 'hidewhenimagebtn'"
+          @click="cancelFileUpload"
+        ></q-btn>
       </div>
       <q-separator
         size="15px"
@@ -231,40 +239,22 @@ export default defineComponent({
     };
   },
   methods: {
+    cancelFileUpload() {
+      this.image = null;
+      this.imageUrl = "";
+      this.imageShow = false;
+    },
     pickFile() {
       this.$refs.files.pickFiles();
     },
     async onFilePicked(e) {
       this.imageUrl = URL.createObjectURL(this.image);
       this.imageShow = true;
-      const file = this.image;
-      const filename = file.name;
-      if (filename.lastIndexOf(".") <= 0) {
-        return alert("Please add a valid file!");
-      }
-      const fileReader = new FileReader();
-      fileReader.addEventListener("load", () => {
-        this.imageUrl = fileReader.result;
-      });
-      fileReader.readAsDataURL(file);
-      const currentUser = auth.currentUser;
-      const metadata = {
-        contentType: file.type,
-      };
-
-      let uidDate = new Date().getTime();
-
-      const fileRef = stRef(
-        storage,
-        "images/posts/" + currentUser.uid + uidDate
-      );
-
-      const snapshot = await uploadBytes(fileRef, file, metadata);
     },
     handleRedirect(post) {
       this.$router.push("/profile/" + post.creatorUsername);
     },
-    addNewPost() {
+    async addNewPost() {
       const creatorID = auth.currentUser.uid;
       let newPost = {
         content: this.newStarshiftingPost,
@@ -284,6 +274,21 @@ export default defineComponent({
       };
       // this.posts.unshift(newPost);
       addDoc(collection(db, "posts"), newPost);
+      if (this.image !== null) {
+        let uidDate = new Date().getTime();
+        const currentUser = auth.currentUser;
+
+        const metadata = {
+          contentType: this.image.type,
+        };
+
+        const fileRef = stRef(
+          storage,
+          "images/posts/" + currentUser.uid + uidDate
+        );
+
+        const uploadTask = await uploadBytes(fileRef, this.image, metadata);
+      }
       this.imageShow = false;
       this.imageUrl = "";
       this.image = null;
@@ -316,7 +321,6 @@ export default defineComponent({
           [`whoLiked.${creatorID}`]: false,
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-        this.likerID = "";
       }
     },
     async getLiked() {
@@ -542,6 +546,16 @@ export default defineComponent({
   border-top: 1px solid;
   border-bottom: 1px solid;
   color: $secondary;
+}
+.showwhenimagebtn {
+  position: relative;
+  z-index: 1;
+  margin-top: -120px;
+  margin-left: -10px;
+}
+
+.hidewhenimagebtn {
+  display: none;
 }
 .imagePreview {
   max-width: 150px;

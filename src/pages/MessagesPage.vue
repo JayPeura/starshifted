@@ -65,7 +65,6 @@
 
         <q-list v-for="chat in chats" :key="chat.id">
           <q-item
-            :key="componentKey"
             v-if="myID === chat.senderID || myID === chat.receiverID"
             @click="handleChat(chat)"
             class="q-my-md"
@@ -314,8 +313,7 @@ export default {
           if (chats.type === "modified") {
             let index = this.chats.findIndex((chat) => chat.id === data.id);
             this.chats.splice(index, 1);
-            this.chats.splice(0, 0, data);
-            this.componentKey += 1;
+            this.chats.unshift(data);
           }
           if (chats.type === "removed") {
             let index = this.chats.findIndex((chat) => chat.id === data.id);
