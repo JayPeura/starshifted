@@ -6,8 +6,15 @@ import {
   createWebHashHistory,
 } from "vue-router";
 import routes from "./routes";
-import { auth } from "../boot/firebase";
+import { auth, database } from "../boot/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import {
+  ref as dbRef,
+  query,
+  onValue,
+  orderByChild,
+  equalTo,
+} from "firebase/database";
 
 /*
  * If not building with SSR mode, you can
@@ -48,11 +55,50 @@ export default route(function (/* { store, ssrContext } */) {
     });
   };
 
+  const admin = () => {
+    return new Promise((resolve, reject) => {
+      let admins = [];
+      const adminUsers = query(
+        dbRef(database, "users"),
+        orderByChild("admin"),
+        equalTo(true)
+      );
+
+      onValue(
+        adminUsers,
+        (snapshot) => {
+          snapshot.forEach((childSnapshot) => {
+            let data = childSnapshot.val();
+            data.id = childSnapshot.key;
+            admins.push(data);
+            resolve(admins);
+            // ...
+          });
+        },
+        reject,
+        {
+          onlyOnce: true,
+        }
+      );
+    });
+  };
   Router.beforeEach(async (to, from, next) => {
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+    const requiresAdmin = to.matched.some(
+      (record) => record.meta.requiresAdmin
+    );
+    const adminData = await admin();
+    const adminIDchecker = adminData.map((admin) => admin.id);
     const data = await user();
     if (requiresAuth && !data) {
       next("Login");
+    } else if (
+      requiresAdmin &&
+      !adminIDchecker.includes(auth.currentUser.uid)
+    ) {
+      next("/");
+    } else if (data && adminIDchecker.includes(auth.currentUser.uid)) {
+      next();
     } else {
       next();
     }

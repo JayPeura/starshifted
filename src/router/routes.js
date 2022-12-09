@@ -13,32 +13,6 @@ import {
 
 let userID;
 
-/////////////// do this later ////////////////////
-// let admin;
-
-// const isAdmin = () => {
-//   const adminUsers = query(
-//     dbRef(database, "users"),
-//     orderByChild("admin"),
-//     equalTo(true)
-//   );
-
-//   onValue(
-//     adminUsers,
-//     (snapshot) => {
-//       snapshot.forEach((childSnapshot) => {
-//         const childKey = childSnapshot.key;
-//         const childData = childSnapshot.val();
-
-//         // ...
-//       });
-//     },
-//     {
-//       onlyOnce: true,
-//     }
-//   );
-// };
-
 onAuthStateChanged(auth, (user) => {
   if (user) {
     const userId = auth.currentUser.uid;
@@ -63,6 +37,7 @@ const routes = [
     path: "/admin",
     name: "Admin",
     component: () => import("layouts/AdminLayout.vue"),
+    meta: { requiresAdmin: true },
     children: [
       //ADMIN ROUTES
       {
@@ -76,75 +51,69 @@ const routes = [
         path: "post/:postId",
         component: () => import("pages/admin/PostPage.vue"),
         name: "Admin view: Post",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "forgotpassword",
         component: () => import("pages/admin/ForgotPassword.vue"),
         name: "Admin view: Forgot Password",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "notifications",
         component: () => import("pages/admin/NotificationsPage.vue"),
         name: "Admin view: Notifications",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "messages",
         component: () => import("pages/admin/MessagesPage.vue"),
         name: "Admin view:  Messaging",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "messages/:chatID",
         component: () => import("src/components/admin/MessageView.vue"),
         name: "Admin view: Message",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "profile",
         component: () => import("pages/admin/ProfilePage.vue"),
         name: "Admin view: Empty profile",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "profile/:username",
         component: () => import("pages/admin/ProfilePage.vue"),
         name: "Admin view: Profile",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "settings",
         component: () => import("pages/admin/SettingsPage.vue"),
         name: "Admin view: Settings",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "reports",
         component: () => import("pages/admin/ReportsPage.vue"),
         name: "Reports",
-        meta: { requiresAuth: true, requiresAdmin: true },
+        meta: { requiresAuth: true },
         props: true,
       },
       {
         path: "about",
         component: () => import("pages/admin/AboutPage.vue"),
         name: "Admin view: About",
-      },
-      {
-        path: "login",
-        component: () => import("pages/LoginPage.vue"),
-        name: "Admin view: Login",
-        props: true,
       },
     ],
   },

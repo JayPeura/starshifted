@@ -295,6 +295,7 @@ export default {
                 verified: false,
                 admin: false,
                 followed: false,
+                admin: false,
                 followerCount: 0,
                 followingCount: 0,
               })
@@ -336,9 +337,24 @@ export default {
                 // Data saved successfully!
                 this.loggedIn = true;
                 this.$emit("logged-in", this.loggedIn);
-                setTimeout(() => {
-                  this.$router.push("/");
-                }, 20);
+
+                const dbReff = dbRef(getDatabase());
+                get(child(dbReff, `users/${user.uid}`))
+                  .then((snapshot) => {
+                    if (snapshot.exists()) {
+                      let data = snapshot.val();
+                      if (data.admin) {
+                        this.$router.push("/admin/home");
+                      } else {
+                        this.$router.push("/");
+                      }
+                    } else {
+                      console.log("No data available");
+                    }
+                  })
+                  .catch((error) => {
+                    console.error(error);
+                  });
               })
               .catch((error) => {
                 // The write failed...

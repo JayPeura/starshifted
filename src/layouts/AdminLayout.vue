@@ -37,7 +37,9 @@
             ? 'src/assets/starshiftedWhite.png'
             : 'src/assets/starshifted.png'
         "
-      /><q-badge outline color="accent" align="top">ADMIN</q-badge>
+      /><q-badge outline color="accent" align="top" class="q-ma-lg"
+        >ADMIN</q-badge
+      >
 
       <q-list>
         <q-item to="/admin/home" clickable v-ripple exact>
@@ -361,26 +363,6 @@ export default {
     },
   },
   mounted() {
-    const adminUsers = query(
-      dbRef(database, "users"),
-      orderByChild("admin"),
-      equalTo(true)
-    );
-
-    onValue(
-      adminUsers,
-      (snapshot) => {
-        snapshot.forEach((childSnapshot) => {
-          const childKey = childSnapshot.key;
-          const childData = childSnapshot.val();
-          console.log(childData);
-          // ...
-        });
-      },
-      {
-        onlyOnce: true,
-      }
-    );
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const userId = auth.currentUser.uid;
