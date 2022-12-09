@@ -152,7 +152,7 @@ import {
   where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import db, { auth, database, storage } from "../boot/firebase";
+import db, { auth, database, storage } from "../../boot/firebase";
 import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 
 const inputRef = ref(null);

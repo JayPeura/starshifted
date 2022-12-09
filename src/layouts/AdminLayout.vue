@@ -37,10 +37,10 @@
             ? 'src/assets/starshiftedWhite.png'
             : 'src/assets/starshifted.png'
         "
-      />
+      /><q-badge outline color="accent" align="top">ADMIN</q-badge>
 
       <q-list>
-        <q-item to="/" clickable v-ripple exact>
+        <q-item to="/admin/home" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -53,7 +53,7 @@
         </q-item>
         <q-item
           :key="$route.fullPath"
-          :to="loggedIn ? '/profile/' + this.myUsername : '/profile'"
+          :to="loggedIn ? '/admin/profile/' + this.myUsername : '/profile'"
           clickable
           v-ripple
           exact
@@ -69,7 +69,7 @@
           <q-item-section class="text-h6">Profile</q-item-section>
         </q-item>
 
-        <q-item :to="'/notifications'" clickable v-ripple exact>
+        <q-item :to="'/admin/notifications'" clickable v-ripple exact>
           <q-badge
             v-if="notificationsCount > 0"
             rounded
@@ -88,7 +88,7 @@
 
           <q-item-section class="text-h6">Notifications</q-item-section>
         </q-item>
-        <q-item :to="'/messages'" clickable v-ripple exact>
+        <q-item :to="'/admin/messages'" clickable v-ripple exact>
           <q-badge
             v-if="messagesCount > 0"
             rounded
@@ -107,7 +107,7 @@
           <q-item-section class="text-h6">Messages</q-item-section>
         </q-item>
 
-        <q-item to="/settings" clickable v-ripple exact>
+        <q-item to="/admin/settings" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -124,7 +124,18 @@
           v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
         >
           <div class="separator">
-            <q-item to="/about" clickable v-ripple exact>
+            <q-item to="/admin/reports" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="warning"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">Reports</q-item-section>
+            </q-item>
+            <q-item to="/admin/about" clickable v-ripple exact>
               <q-item-section avatar>
                 <q-icon
                   :color="$q.dark.isActive ? 'secondary' : 'primary'"
@@ -350,6 +361,26 @@ export default {
     },
   },
   mounted() {
+    const adminUsers = query(
+      dbRef(database, "users"),
+      orderByChild("admin"),
+      equalTo(true)
+    );
+
+    onValue(
+      adminUsers,
+      (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+          const childKey = childSnapshot.key;
+          const childData = childSnapshot.val();
+          console.log(childData);
+          // ...
+        });
+      },
+      {
+        onlyOnce: true,
+      }
+    );
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const userId = auth.currentUser.uid;

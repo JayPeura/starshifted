@@ -119,7 +119,7 @@ import {
   getDatabase,
 } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, database, storage } from "../boot/firebase";
+import { auth, database, storage } from "../../boot/firebase";
 
 const inputRef = ref(null);
 const newUsernameRef = ref("");
