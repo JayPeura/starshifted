@@ -210,7 +210,7 @@
               >Overwatch 2 champion</q-item-label
             >
             <q-item-label caption
-              >No one won this stupid ass game, touch grass</q-item-label
+              >New crowned champion! Check out this article!</q-item-label
             >
           </q-item-section>
 
@@ -235,6 +235,13 @@
           </q-item-section>
         </q-item>
       </q-list>
+      <q-item
+        ><q-item-section side top class="flex flex-center full-width"
+          ><q-item-label caption class="text-grey-8 text-uppercase"
+            >© 2022 Starshifted</q-item-label
+          ></q-item-section
+        ></q-item
+      >
     </q-drawer>
 
     <q-page-container>

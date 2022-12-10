@@ -77,7 +77,7 @@ const routes = [
       },
       {
         path: "messages/:chatID",
-        component: () => import("src/components/admin/MessageView.vue"),
+        component: () => import("pages/admin/MessageView.vue"),
         name: "Admin view: Message",
         meta: { requiresAuth: true },
         props: true,
@@ -159,7 +159,7 @@ const routes = [
       },
       {
         path: "messages/:chatID",
-        component: () => import("src/components/MessageView.vue"),
+        component: () => import("pages/MessageView.vue"),
         name: "Message",
         meta: { requiresAuth: true },
         props: true,

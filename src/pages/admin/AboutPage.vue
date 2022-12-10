@@ -11,8 +11,9 @@
         Starshifted will be soon published for the people and hopefully it can
         satisfy the needs where Twitter fails.
       </p>
+      <h6>ADMINS ONLY:</h6>
+      <p>Remember that you represent this site! Behave accordinly.</p>
     </div>
-    <q-btn label="Edit page" />
   </q-page>
 </template>
 
@@ -21,5 +22,11 @@ import { defineComponent } from "vue";
 
 export default defineComponent({
   name: "AboutPage",
+  data() {
+    return {};
+  },
+  methods: {
+    editPage() {},
+  },
 });
 </script>

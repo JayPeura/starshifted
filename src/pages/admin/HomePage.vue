@@ -1,7 +1,7 @@
 <template>
   <q-page class="relative-position">
     <q-scroll-area :visible="false" class="absolute full-width full-height">
-      <div class="q-py-lg q-px-md row items-end q-col-gutter-sm">
+      <div class="q-pt-lg q-pb-sm q-px-md row items-end q-col-gutter-sm">
         <div class="col">
           <q-input
             bottom-slots
@@ -9,7 +9,7 @@
             placeholder="What's going on?"
             autogrow
             borderless
-            counter
+            :counter="newStarshiftingPost ? true : false"
             maxlength="280"
             class="new-post"
           >
@@ -87,7 +87,7 @@
             </q-item-section>
 
             <q-item-section>
-              <q-item-label class="text-subtitle1"
+              <q-item-label class="text-subtitle1" style="overflow: hidden"
                 ><strong @click="handleRedirect(post)" class="clickableLabel">{{
                   post.creatorDisplayname
                 }}</strong>
@@ -99,13 +99,27 @@
                       : 'hideWhenNotVerified'
                   "
                 />
-                <span class="text-grey-7">
+                <span
+                  class="text-grey-7"
+                  style="
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    width: 30px;
+                    overflow: hidden;
+                  "
+                >
                   @{{ post.creatorUsername }}
                   &bull;
-                  <br class="lt-md" />
                 </span>
-                <span class="text-grey-7">
-                  {{ formatDistance(post.date, new Date()) }}</span
+                <span
+                  class="text-grey-7"
+                  style="position: relative; padding-right: 50px"
+                >
+                  {{
+                    post.date > Date.now() - 35 * 60 * 60 * 1000
+                      ? formatDistanceStrict(post.date, new Date())
+                      : format(post.date, "d MMM")
+                  }}</span
                 >
               </q-item-label>
               <q-item-label class="post-content text-body1">
@@ -113,21 +127,65 @@
                 <img :src="post.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
-                <q-btn flat round icon="more_horiz" size="13px">
+                <q-btn flat round icon="more_vert" size="13px">
                   <q-menu>
-                    <q-list style="min-width: 100px">
+                    <q-list style="min-width: 240px">
+                      <q-item v-if="post.creatorId !== myID" clickable>
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="person"
+                            size="sm"
+                          />
+                        </q-item-section>
+
+                        <q-item-section
+                          >{{ isFollowed ? "Follow " : "Unfollow " }} @{{
+                            post.creatorUsername
+                          }}</q-item-section
+                        >
+                      </q-item>
+                      <q-item clickable @click="deletePost(post)">
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="delete"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Delete post</q-item-section
+                        >
+                      </q-item>
+                      <q-separator
+                        v-if="post.creatorId !== myID"
+                        color="grey-9"
+                      />
                       <q-item
+                        v-if="post.creatorId !== myID"
                         clickable
-                        @click="deletePost(post)"
-                        v-if="post.creatorId === myID"
+                        outline
+                        @click="banUser(post)"
                       >
-                        <q-item-section>Delete post</q-item-section>
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="gavel"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Ban user</q-item-section
+                        >
                       </q-item>
                     </q-list>
                   </q-menu>
                 </q-btn>
               </div>
-              <div class="post-icons row justify-between q-mt-sm">
+              <div
+                class="post-icons row justify-between q-mt-sm"
+                style="width: 80%"
+              >
                 <q-btn
                   flat
                   round
@@ -197,7 +255,7 @@ import {
   onValue,
 } from "firebase/database";
 import { defineComponent, ref, toRaw, nextTick } from "vue";
-import { formatDistance } from "date-fns";
+import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 
@@ -223,9 +281,12 @@ export default defineComponent({
       defaultImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       formatDistance,
+      formatDistanceStrict,
+      format,
       imageUrl: imageUrlRef,
       image: imageRef,
       posts: [],
+      isFollowed: false,
       imageShow: false,
       postLikes: likeRef,
       likes: [],
@@ -236,7 +297,6 @@ export default defineComponent({
       myPosts: [],
       myID: auth.currentUser.uid,
       isHidden: false,
-      isAdmin: false,
       isLiked: false,
     };
   },
@@ -297,11 +357,7 @@ export default defineComponent({
       this.newStarshiftingPost = "";
     },
     deletePost(post) {
-      if (auth.currentUser.uid === post.creatorId) {
-        deleteDoc(doc(db, "posts", post.id));
-      } else {
-        return;
-      }
+      deleteDoc(doc(db, "posts", post.id));
     },
     toggleLiked(post) {
       const creatorID = auth.currentUser.uid;
@@ -545,7 +601,6 @@ export default defineComponent({
   object-fit: cover;
 }
 .post-icons {
-  width: 80%;
   align-items: center;
   padding: 0;
   .postLikes {
@@ -592,16 +647,12 @@ export default defineComponent({
 .postImage {
   width: auto;
   height: auto;
-  max-width: 450px;
-  max-height: 400px;
+  max-width: 100%;
+  max-height: 500px;
   margin-bottom: 15px;
+  padding-right: 35px;
   margin-top: 10px;
   display: flex;
-}
-@media only screen and (min-device-width: 320px) and (max-device-width: 480px) {
-  .postImage {
-    width: 200px;
-  }
 }
 
 img[src=""] {

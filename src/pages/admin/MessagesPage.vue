@@ -292,7 +292,7 @@ export default {
       }
     },
     handleChat(chat) {
-      this.$router.push("/messages/" + chat.id);
+      this.$router.push("/admin/messages/" + chat.id);
     },
     async getChats() {
       const myID = auth.currentUser.uid;

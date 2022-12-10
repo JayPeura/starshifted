@@ -1,7 +1,7 @@
 <template>
   <q-page class="relative-position">
     <q-scroll-area :visible="false" class="absolute full-width full-height">
-      <div class="q-py-lg q-px-md row items-end q-col-gutter-sm">
+      <div class="q-pt-lg q-pb-sm q-px-md row items-end q-col-gutter-sm">
         <div class="col">
           <q-input
             bottom-slots
@@ -9,7 +9,7 @@
             placeholder="What's going on?"
             autogrow
             borderless
-            counter
+            :counter="newStarshiftingPost ? true : false"
             maxlength="280"
             class="new-post"
           >
@@ -99,13 +99,23 @@
                       : 'hideWhenNotVerified'
                   "
                 />
-                <span class="text-grey-7">
+                <span
+                  class="text-grey-7"
+                  style="
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
+                  "
+                >
                   @{{ post.creatorUsername }}
                   &bull;
-                  <br class="lt-md" />
                 </span>
                 <span class="text-grey-7">
-                  {{ formatDistance(post.date, new Date()) }}</span
+                  {{
+                    post.date > Date.now() - 35 * 60 * 60 * 1000
+                      ? formatDistanceStrict(post.date, new Date())
+                      : format(post.date, "d MMM")
+                  }}</span
                 >
               </q-item-label>
               <q-item-label class="post-content text-body1">
@@ -115,13 +125,69 @@
               <div class="postMenu row justify-between q-mt-sm">
                 <q-btn flat round icon="more_horiz" size="13px">
                   <q-menu>
-                    <q-list style="min-width: 100px">
+                    <q-list style="min-width: 240px">
+                      <q-item clickable>
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="person"
+                            size="sm"
+                          />
+                        </q-item-section>
+
+                        <q-item-section
+                          >Follow @{{ post.creatorUsername }}</q-item-section
+                        >
+                      </q-item>
+                      <q-separator color="grey-9" />
+
                       <q-item
+                        v-if="post.creatorId === myID"
                         clickable
                         @click="deletePost(post)"
-                        v-if="post.creatorId === myID"
                       >
-                        <q-item-section>Delete post</q-item-section>
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="delete"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Delete post</q-item-section
+                        ></q-item
+                      >
+                      <q-item
+                        v-if="post.creatorId !== myID"
+                        clickable
+                        @click="reportUser(post)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="dangerous"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Report user</q-item-section
+                        ></q-item
+                      >
+                      <q-item
+                        v-if="post.creatorId !== myID"
+                        clickable
+                        @click="reportPost(post)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="warning"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Report post</q-item-section
+                        >
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -197,7 +263,7 @@ import {
   onValue,
 } from "firebase/database";
 import { defineComponent, ref, toRaw, nextTick } from "vue";
-import { formatDistance } from "date-fns";
+import { formatDistance, formatDistanceStrict, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 
@@ -223,6 +289,8 @@ export default defineComponent({
       defaultImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       formatDistance,
+      formatDistanceStrict,
+      format,
       imageUrl: imageUrlRef,
       image: imageRef,
       posts: [],
@@ -241,6 +309,12 @@ export default defineComponent({
     };
   },
   methods: {
+    reportUser(post) {
+      //get post user, send report to database
+    },
+    reportPost(post) {
+      //get post info (params), send report to database
+    },
     cancelFileUpload() {
       this.image = null;
       this.imageUrl = "";
@@ -592,16 +666,12 @@ export default defineComponent({
 .postImage {
   width: auto;
   height: auto;
-  max-width: 450px;
-  max-height: 400px;
+  max-width: 100%;
+  max-height: 500px;
   margin-bottom: 15px;
+  padding-right: 35px;
   margin-top: 10px;
   display: flex;
-}
-@media only screen and (min-device-width: 320px) and (max-device-width: 480px) {
-  .postImage {
-    width: 200px;
-  }
 }
 
 img[src=""] {

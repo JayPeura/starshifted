@@ -57,6 +57,8 @@
             /></template>
             <template v-else-if="myID === message.receiverID" v-slot:avatar>
               <img
+                style="cursor: pointer"
+                @click="handleAvatarRedirect(message)"
                 class="q-message-avatar q-message-avatar--sent"
                 :src="
                   myID === message.senderID ? message.image : message.myImage
@@ -262,6 +264,10 @@ export default {
     },
   },
   methods: {
+    handleAvatarRedirect(message) {
+      console.log(message);
+      this.$router.push("/profile/" + toRaw(message.senderUsername));
+    },
     scrollPageTo() {
       let element = document.querySelector(`#scrollPage`);
       element.scrollIntoView({
