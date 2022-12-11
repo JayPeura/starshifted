@@ -94,6 +94,7 @@ export default route(function (/* { store, ssrContext } */) {
       next("Login");
     } else if (
       requiresAdmin &&
+      adminData.admin === null &&
       !adminIDchecker.includes(auth.currentUser.uid)
     ) {
       next("/");

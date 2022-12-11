@@ -10,7 +10,7 @@
             autogrow
             borderless
             :counter="newStarshiftingPost ? true : false"
-            maxlength="280"
+            maxlength="480"
             class="new-post"
           >
             <template v-slot:before>
@@ -123,7 +123,7 @@
                 >
               </q-item-label>
               <q-item-label class="post-content text-body1">
-                {{ post.content }}
+                <span v-html="linkifyText(post)"></span>
                 <img :src="post.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
@@ -258,6 +258,7 @@ import { defineComponent, ref, toRaw, nextTick } from "vue";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
+import sanitizeHtml from "sanitize-html";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -301,6 +302,27 @@ export default defineComponent({
     };
   },
   methods: {
+    linkifyText(post) {
+      const pattern1 =
+        /(\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
+      let text = post.content.replace(
+        pattern1,
+        '<a href="$1" target="_blank">$1</a>'
+      );
+
+      const pattern2 = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+      text = text.replace(
+        pattern2,
+        '$1<a href="http://$2" target="_blank">$2</a>'
+      );
+      return sanitizeHtml(text, {
+        allowedTags: ["b", "i", "em", "strong", "a"],
+        allowedAttributes: {
+          a: ["href"],
+        },
+        allowedIframeHostnames: ["www.youtube.com"],
+      });
+    },
     cancelFileUpload() {
       this.image = null;
       this.imageUrl = "";
@@ -466,31 +488,60 @@ export default defineComponent({
               onValue(usernameRef, (snapshot) => {
                 if (snapshot.val() !== null) {
                   const data = snapshot.val();
-                  this.userVerified = data.verified;
-                  this.currUsername = data.username;
-                  this.currName = data.displayName;
-                  if (this.creatorID === myID && this.postID) {
+                  if (data.verified === undefined) {
+                    this.userVerified = false;
+                    this.currUsername = data.username;
+                    this.currName = data.displayName;
+                    if (this.creatorID === myID && this.postID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        creatorUsername: data.username,
+                        creatorDisplayname: data.displayName,
+                        isUserVerified: false,
+                        creatorImage: data.image,
+                        isHidden: false,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else if (!this.creatorID === myID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isHidden: true,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {
-                      creatorUsername: data.username,
-                      creatorDisplayname: data.displayName,
-                      isUserVerified: data.verified,
-                      creatorImage: data.image,
-                      isHidden: false,
+                      isUserVerified: this.userVerified,
                     };
                     updateDoc(replaceInfo, newInfo);
-                  } else if (!this.creatorID === myID) {
+                  } else {
+                    this.userVerified = data.verified;
+                    this.currUsername = data.username;
+                    this.currName = data.displayName;
+
+                    if (this.creatorID === myID && this.postID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        creatorUsername: data.username,
+                        creatorDisplayname: data.displayName,
+                        isUserVerified: data.verified,
+                        creatorImage: data.image,
+                        isHidden: false,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else if (!this.creatorID === myID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isHidden: true,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {
-                      isHidden: true,
+                      isUserVerified: this.userVerified,
                     };
                     updateDoc(replaceInfo, newInfo);
                   }
-                  const replaceInfo = doc(db, "posts/", filteredArray);
-                  const newInfo = {
-                    isUserVerified: this.userVerified,
-                  };
-                  updateDoc(replaceInfo, newInfo);
                 } else if (snapshot.val() === null) {
                   this.userVerified = false;
                   this.currUsername = "";
@@ -547,6 +598,11 @@ export default defineComponent({
       .then((snapshot) => {
         if (snapshot.exists()) {
           this.myImage = snapshot.val().image;
+          if (!snapshot.val().verified === undefined) {
+            this.userVerified = snapshot.val().verified;
+          } else {
+            this.userVerified = false;
+          }
           if (snapshot.val().admin) {
             this.isAdmin = true;
           }

@@ -42,7 +42,7 @@
       >
 
       <q-list>
-        <q-item to="/admin/home" clickable v-ripple exact>
+        <q-item to="/admin" clickable v-ripple exact>
           <q-item-section avatar>
             <q-icon
               :color="$q.dark.isActive ? 'secondary' : 'primary'"

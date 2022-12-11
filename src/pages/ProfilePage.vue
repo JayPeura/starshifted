@@ -136,6 +136,7 @@ import {
   update,
   query,
   equalTo,
+  remove,
   orderByChild,
 } from "firebase/database";
 import {
@@ -173,6 +174,7 @@ export default defineComponent({
       myImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       userID: "",
+      myID: auth.currentUser.uid,
       theirID: "",
       isUserVerified: false,
       imageURL: "",
@@ -290,64 +292,53 @@ export default defineComponent({
           const userFollowRef = dbRef(database, "users/" + key);
           onValue(
             userFollowRef,
-            (snapshot) => {
-              const info = snapshot.val();
+            (theirSnapshot) => {
+              const info = theirSnapshot.val();
 
               const myRef = dbRef(database, "users/" + followerID);
               onValue(
                 myRef,
-                (snapshot) => {
-                  const myInfo = snapshot.val();
+                (mySnapshot) => {
+                  const myInfo = mySnapshot.val();
                   if (info.followers === undefined) {
-                    update(dbRef(database, "users/" + key), {
-                      [`followers/${followerID}`]: !info.followed,
-                    });
-                    return;
-                  }
-                  if (this.userID === "") {
-                    return;
+                    this.followerCount = 0;
                   }
 
-                  if (isNaN(info.followerCount)) {
-                    update(dbRef(database, "users/" + key), {
-                      followerCount: 0,
-                    });
-                  }
-                  if (isNaN(info.followingCount)) {
-                    update(dbRef(database, "users/" + key), {
-                      followingCount: 0,
-                    });
-                  }
-
-                  if (!this.followed) {
+                  if (info.followers === undefined) {
                     this.followed = true;
-                    this.followerCount = info.followerCount;
-                    this.followingCount = info.followingCount;
-                    this.theyFollowed = info.followers[followerID];
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
 
                     update(dbRef(database, "users/" + key), {
-                      [`followers/${followerID}`]: !info.followed,
-                      followed: !info.followed,
-                      followerCount: info.followerCount + 1,
+                      [`followers/${followerID}`]: true,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      followingCount: myInfo.followingCount + 1,
+                      [`following/${key}`]: true,
+                    });
+                  } else if (!info.followers[followerID]) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${key}`]: true,
                     });
                   } else {
                     this.followed = false;
-                    this.followerCount = info.followerCount;
-                    this.followingCount = info.followingCount;
-                    this.theyFollowed = info.followers[followerID];
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
 
                     update(dbRef(database, "users/" + key), {
-                      [`followers/${followerID}`]: !info.followed,
-                      followed: !info.followed,
-                      followerCount: Math.max(0, info.followerCount - 1),
+                      [`followers/${followerID}`]: null,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      followingCount: Math.max(0, myInfo.followingCount - 1),
+                      [`following/${key}`]: null,
                     });
                   }
                 },
@@ -380,35 +371,43 @@ export default defineComponent({
           this.userID = key;
 
           const userFollowRef = dbRef(database, "users/" + key);
-          onValue(userFollowRef, (snapshot) => {
-            const info = snapshot.val();
-            this.followerCount = info.followerCount;
-            this.followed = info.followed;
-            this.followingCount = info.followingCount;
-
-            if (isNaN(info.followerCount)) {
-              update(dbRef(database, "users/" + key), {
-                followerCount: 0,
-              });
-            }
-            if (isNaN(info.followingCount)) {
-              update(dbRef(database, "users/" + key), {
-                followingCount: 0,
-              });
-            }
-            if (info.following === undefined) {
-              update(dbRef(database, "users/" + key), {
-                [`following/${followerID}`]: false,
-              });
-            }
+          onValue(userFollowRef, (snapshot1) => {
+            const info = snapshot1.val();
+            this.followerCount = snapshot1.child("followers").size;
+            this.followingCount = snapshot1.child("following").size;
 
             const myRef = dbRef(database, "users/" + followerID);
             onValue(
               myRef,
-              (snapshot) => {
-                const myInfo = snapshot.val();
-                this.theyFollowed = myInfo.following[key];
+              (snapshot2) => {
+                const myInfo = snapshot2.val();
+                this.followingCount = snapshot1.child("following").size;
+                this.followerCount = snapshot1.child("followers").size;
                 this.myImage = myInfo.image;
+
+                if (myInfo.following === undefined) {
+                  this.followed = false;
+                } else if (info.following === undefined) {
+                  this.theyFollowed = false;
+                } else if (
+                  myInfo.following[key] &&
+                  info.following[followerID]
+                ) {
+                  this.followed = true;
+                  this.theyFollowed = true;
+                } else if (
+                  !myInfo.following[key] &&
+                  info.following[followerID]
+                ) {
+                  this.followed = false;
+                  this.theyFollowed = true;
+                } else if (
+                  myInfo.following[key] &&
+                  !info.following[followerID]
+                ) {
+                  this.followed = true;
+                  this.theyFollowed = false;
+                }
               },
               {
                 onlyOnce: true,
@@ -515,11 +514,8 @@ export default defineComponent({
         this.userID = key;
 
         const userFollowRef = dbRef(database, "users/" + key);
-        onValue(userFollowRef, (snapshot) => {
+        onValue(userFollowRef, (snapshot1) => {
           const info = snapshot.val();
-          this.followerCount = info.followerCount;
-          this.followed = info.followed;
-          this.followingCount = info.followingCount;
         });
         get(child(dbReff, `users/${key}`))
           .then((snapshot) => {
@@ -527,15 +523,19 @@ export default defineComponent({
               this.currUsername = snapshot.val().username;
               this.profileName = snapshot.val().displayName;
               this.image = snapshot.val().image;
-              this.isUserVerified = snapshot.val().verified;
+              if (snapshot.val().verified !== undefined) {
+                this.isUserVerified = snapshot.val().verified;
+              } else {
+                this.isUserVerified = false;
+              }
               this.bio = snapshot.val().bio;
-              if (snapshot.val().followerCount > 0) {
-                this.followerCount = snapshot.val().followerCount;
+              if (snapshot.child("followers").size > 0) {
+                this.followerCount = snapshot.child("followers").size;
               } else {
                 this.followerCount = 0;
               }
-              if (snapshot.val().followingCount > 0) {
-                this.followingCount = snapshot.val().followingCount;
+              if (snapshot.child("following").size > 0) {
+                this.followingCount = snapshot.child("following").size;
               } else {
                 this.followingCount = 0;
               }

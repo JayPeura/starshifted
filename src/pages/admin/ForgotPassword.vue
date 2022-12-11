@@ -93,9 +93,6 @@
 
 <script>
 import { ref } from "vue";
-import { onAuthStateChanged } from "firebase/auth";
-import { ref as dbRef, set, update } from "firebase/database";
-import { auth, database } from "../../firebase";
 
 const passwordRef = ref(""),
   repasswordRef = ref(""),

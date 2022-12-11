@@ -10,7 +10,7 @@
             autogrow
             borderless
             :counter="newStarshiftingPost ? true : false"
-            maxlength="280"
+            maxlength="480"
             class="new-post"
           >
             <template v-slot:before>
@@ -119,7 +119,7 @@
                 >
               </q-item-label>
               <q-item-label class="post-content text-body1">
-                {{ post.content }}
+                <span v-html="linkifyText(post)"></span>
                 <img :src="post.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
@@ -266,6 +266,7 @@ import { defineComponent, ref, toRaw, nextTick } from "vue";
 import { formatDistance, formatDistanceStrict, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
+import sanitizeHtml from "sanitize-html";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -294,21 +295,40 @@ export default defineComponent({
       imageUrl: imageUrlRef,
       image: imageRef,
       posts: [],
+      likes: 0,
       imageShow: false,
       postLikes: likeRef,
-      likes: [],
-      likerID: "",
       creatorID: "",
       currentCreatorID: "",
       postID: [],
       myPosts: [],
       myID: auth.currentUser.uid,
       isHidden: false,
-      isAdmin: false,
       isLiked: false,
     };
   },
   methods: {
+    linkifyText(post) {
+      const pattern1 =
+        /(\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
+      let text = post.content.replace(
+        pattern1,
+        '<a href="$1" target="_blank">$1</a>'
+      );
+
+      const pattern2 = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+      text = text.replace(
+        pattern2,
+        '$1<a href="http://$2" target="_blank">$2</a>'
+      );
+      return sanitizeHtml(text, {
+        allowedTags: ["b", "i", "em", "strong", "a"],
+        allowedAttributes: {
+          a: ["href"],
+        },
+        allowedIframeHostnames: ["www.youtube.com"],
+      });
+    },
     reportUser(post) {
       //get post user, send report to database
     },
@@ -382,40 +402,39 @@ export default defineComponent({
       this.postID = post.id;
 
       //check if likes are NaN and fix it
-      if (isNaN(post.likes)) {
-        updateDoc(doc(db, "posts", post.id), { likes: 0 });
-      }
+
       if (!post.whoLiked[creatorID]) {
         const updateData = {
-          likes: post.likes + 1,
           [`whoLiked.${creatorID}`]: true,
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          likes: Math.max(0, post.likes - 1),
-          [`whoLiked.${creatorID}`]: false,
+          [`whoLiked.${creatorID}`]: null,
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       }
     },
     async getLiked() {
-      const creatorID = auth.currentUser.uid;
+      const myID = auth.currentUser.uid;
 
       const newQuerySnapshot = await getDocs(collection(db, "posts"));
       newQuerySnapshot.forEach((post) => {
         const postData = post.data();
 
-        if (postData.whoLiked[creatorID]) {
+        if (postData.whoLiked === undefined) {
           const updateData = {
-            [`whoLiked.${creatorID}`]: true,
-            likes: postData.likes,
+            [`whoLiked.${myID}`]: true,
+          };
+          updateDoc(doc(db, "posts/", post.id), updateData);
+        } else if (postData.whoLiked[myID]) {
+          const updateData = {
+            [`whoLiked.${myID}`]: true,
           };
           updateDoc(doc(db, "posts/", post.id), updateData);
         } else {
           const updateData = {
-            [`whoLiked.${creatorID}`]: false,
-            likes: postData.likes,
+            [`whoLiked.${myID}`]: null,
           };
           updateDoc(doc(db, "posts/", post.id), updateData);
         }
@@ -484,31 +503,60 @@ export default defineComponent({
               onValue(usernameRef, (snapshot) => {
                 if (snapshot.val() !== null) {
                   const data = snapshot.val();
-                  this.userVerified = data.verified;
-                  this.currUsername = data.username;
-                  this.currName = data.displayName;
-                  if (this.creatorID === myID && this.postID) {
+                  if (data.verified === undefined) {
+                    this.userVerified = false;
+                    this.currUsername = data.username;
+                    this.currName = data.displayName;
+                    if (this.creatorID === myID && this.postID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        creatorUsername: data.username,
+                        creatorDisplayname: data.displayName,
+                        isUserVerified: false,
+                        creatorImage: data.image,
+                        isHidden: false,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else if (!this.creatorID === myID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isHidden: true,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {
-                      creatorUsername: data.username,
-                      creatorDisplayname: data.displayName,
-                      isUserVerified: data.verified,
-                      creatorImage: data.image,
-                      isHidden: false,
+                      isUserVerified: this.userVerified,
                     };
                     updateDoc(replaceInfo, newInfo);
-                  } else if (!this.creatorID === myID) {
+                  } else {
+                    this.userVerified = data.verified;
+                    this.currUsername = data.username;
+                    this.currName = data.displayName;
+
+                    if (this.creatorID === myID && this.postID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        creatorUsername: data.username,
+                        creatorDisplayname: data.displayName,
+                        isUserVerified: data.verified,
+                        creatorImage: data.image,
+                        isHidden: false,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else if (!this.creatorID === myID) {
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isHidden: true,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {
-                      isHidden: true,
+                      isUserVerified: this.userVerified,
                     };
                     updateDoc(replaceInfo, newInfo);
                   }
-                  const replaceInfo = doc(db, "posts/", filteredArray);
-                  const newInfo = {
-                    isUserVerified: this.userVerified,
-                  };
-                  updateDoc(replaceInfo, newInfo);
                 } else if (snapshot.val() === null) {
                   this.userVerified = false;
                   this.currUsername = "";
@@ -565,9 +613,6 @@ export default defineComponent({
       .then((snapshot) => {
         if (snapshot.exists()) {
           this.myImage = snapshot.val().image;
-          if (snapshot.val().admin) {
-            this.isAdmin = true;
-          }
         } else {
           console.log("No data available");
         }

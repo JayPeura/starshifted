@@ -34,9 +34,7 @@
                 ? message.senderName + ' @' + message.senderUsername
                 : 'You'
             "
-            name-html
             :text="[message.content]"
-            text-html
             :sent="message.senderID === myID ? true : false"
             :bg-color="message.senderID !== myID ? 'grey-10' : 'grey-9'"
             :stamp="
@@ -366,7 +364,11 @@ export default {
             this.theirName = snapshot.val().displayName;
             this.theirUsername = snapshot.val().username;
             this.theirImage = snapshot.val().image;
-            this.theyVerified = snapshot.val().verified;
+            if (snapshot.val().verified !== undefined) {
+              this.theyVerified = snapshot.val().verified;
+            } else {
+              this.theyVerified = false;
+            }
           } else {
             console.log("No data available");
           }
@@ -381,7 +383,11 @@ export default {
             this.theirName = snapshot.val().displayName;
             this.theirUsername = snapshot.val().username;
             this.theirImage = snapshot.val().image;
-            this.theyVerified = snapshot.val().verified;
+            if (snapshot.val().verified !== undefined) {
+              this.theyVerified = snapshot.val().verified;
+            } else {
+              this.theyVerified = false;
+            }
           } else {
             console.log("No data available");
           }
@@ -402,7 +408,11 @@ export default {
               this.username = snapshot.val().username;
               this.myName = snapshot.val().displayName;
               this.myImage = snapshot.val().image;
-              this.myVerified = snapshot.val().verified;
+              if (snapshot.val().verified !== undefined) {
+                this.myVerified = snapshot.val().verified;
+              } else {
+                this.myVerified = false;
+              }
             } else {
               console.log("No data available");
             }

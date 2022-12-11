@@ -289,15 +289,7 @@ export default {
                 username: this.$refs.username.modelValue,
                 email: this.$refs.email.modelValue,
                 displayName: this.$refs.displayname.modelValue,
-                followers: { [`${user.uid}`]: false },
-                following: { [`${user.uid}`]: false },
                 image: this.image,
-                verified: false,
-                admin: false,
-                followed: false,
-                admin: false,
-                followerCount: 0,
-                followingCount: 0,
               })
                 .then(() => {
                   // Data saved successfully!
@@ -344,7 +336,7 @@ export default {
                     if (snapshot.exists()) {
                       let data = snapshot.val();
                       if (data.admin) {
-                        this.$router.push("/admin/home");
+                        this.$router.push("/admin");
                       } else {
                         this.$router.push("/");
                       }
