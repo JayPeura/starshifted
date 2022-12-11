@@ -234,57 +234,61 @@ export default {
     async handleRedirect(user) {
       const myID = auth.currentUser.uid;
 
-      const receiverList = await getDocs(
+      const participantList = await getDocs(
         fsQuery(
           collection(db, "chats/"),
-          where("receiverID", "in", [user.id, myID])
+          where("participants", "array-contains", myID)
         )
       );
 
-      if (!receiverList.empty) {
-        receiverList.forEach(async (receiver) => {
-          const receiverID = receiver.data().receiverID;
-          const senderID = receiver.data().senderID;
-          const id = receiver.id;
-          if (receiverID === myID) {
-            if (senderID === user.id) {
-              this.$router.push("/messages/" + id);
+      if (!participantList.empty) {
+        participantList.forEach(async (receiver) => {
+          const participantsList = receiver.data();
+          const chatID = receiver.id;
+          if (
+            participantsList.participants.find(
+              (participant) => participant === myID
+            )
+          ) {
+            if (
+              participantsList.participants.find(
+                (participant) => participant === user.id
+              )
+            ) {
+              this.$router.push("/messages/" + chatID);
             } else {
               await addDoc(collection(db, "chats"), {
                 lastMessage: "",
-                receiverID: user.id,
-                senderID: myID,
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else if (receiverID === user.id) {
-            if (senderID === myID) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: user.id,
-                senderID: myID,
+                theirImage: this.theirImage,
+                myImage: this.myImage,
+                lastMessageAt: Date.now(),
+                participants: [user.id, myID],
               }).then(async (docRef) => {
                 await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
                 this.$router.push("/messages/" + docRef.id);
               });
             }
           } else {
-            console.log("No chats with these ID's yet made.");
+            await addDoc(collection(db, "chats"), {
+              lastMessage: "",
+              theirImage: this.theirImage,
+              myImage: this.myImage,
+              lastMessageAt: Date.now(),
+              participants: [user.id, myID],
+            }).then(async (docRef) => {
+              await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+              this.$router.push("/messages/" + docRef.id);
+            });
           }
         });
       } else {
         console.log("No data yet, creating...");
         await addDoc(collection(db, "chats"), {
           lastMessage: "",
-          receiverID: user.id,
           theirImage: this.theirImage,
           myImage: this.myImage,
           lastMessageAt: Date.now(),
-          senderID: myID,
+          participants: [user.id, myID],
         }).then(async (docRef) => {
           await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
           this.$router.push("/messages/" + docRef.id);
@@ -297,12 +301,13 @@ export default {
     async getChats() {
       const myID = auth.currentUser.uid;
 
-      const receiverQuery = await fsQuery(
+      const participantQuery = await fsQuery(
         collection(db, "chats/"),
+        where("participants", "array-contains", myID),
         orderBy("lastMessageAt", "asc")
       );
 
-      const unsubscribe = onSnapshot(receiverQuery, (querySnapshot) => {
+      const unsubscribe = onSnapshot(participantQuery, (querySnapshot) => {
         querySnapshot.docChanges().forEach((chats) => {
           let data = chats.doc.data();
           data.id = chats.doc.id;

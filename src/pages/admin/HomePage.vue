@@ -199,15 +199,17 @@
                   flat
                   round
                   @click="toggleLiked(post)"
-                  :color="post.whoLiked[myID] ? 'red' : 'grey'"
-                  :icon="post.whoLiked[myID] ? 'favorite' : 'favorite_border'"
+                  :color="checkColor(post)"
+                  :icon="checkIcon(post)"
                   size="sm"
                 >
                   <span class="postLikes">
                     {{
-                      new Intl.NumberFormat("en-GB", {
-                        notation: "compact",
-                      }).format(post.likes)
+                      post.whoLiked !== undefined
+                        ? new Intl.NumberFormat("en-GB", {
+                            notation: "compact",
+                          }).format(Object.keys(post.whoLiked).length)
+                        : 0
                     }}
                   </span></q-btn
                 >
@@ -302,6 +304,26 @@ export default defineComponent({
     };
   },
   methods: {
+    checkColor(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "grey";
+      } else if (post.whoLiked[myID]) {
+        return "red";
+      } else if (!post.whoLiked[myID]) {
+        return "grey";
+      }
+    },
+    checkIcon(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "favorite_border";
+      } else if (post.whoLiked[myID]) {
+        return "favorite";
+      } else if (!post.whoLiked[myID]) {
+        return "favorite_border";
+      }
+    },
     linkifyText(post) {
       const pattern1 =
         /(\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;

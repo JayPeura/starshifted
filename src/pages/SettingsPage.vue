@@ -142,9 +142,6 @@ export default defineComponent({
     };
   },
   methods: {
-    clear() {
-      this.newUsername = "";
-    },
     isUsernameTaken(val) {
       const usernameRef = dbRef(database, "users");
       onValue(
@@ -166,7 +163,10 @@ export default defineComponent({
     },
     updateName() {
       const user = auth.currentUser;
-      if (this.newUsername !== this.dbUsername && this.newUsername.length > 2) {
+      if (
+        this.newUsername !== this.dbUsername &&
+        this.newUsername.length >= 2
+      ) {
         update(dbRef(database, "users/" + user.uid), {
           username: this.newUsername,
         })
@@ -186,7 +186,7 @@ export default defineComponent({
       } else if (this.newUsername === this.dbUsername) {
         this.usernameTaken = true;
         return;
-      } else if (this.newUsername.length > 1) {
+      } else if (this.newUsername.length < 1) {
         this.usernameShort = true;
       }
     },

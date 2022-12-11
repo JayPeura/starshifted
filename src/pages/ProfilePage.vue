@@ -3,7 +3,7 @@
     <div class="flexy">
       <div class="image-upload">
         <label for="actual-btn">
-          <img
+          <q-img
             :key="$route.fullPath"
             :src="image"
             alt="avatar"
@@ -112,21 +112,11 @@
         @click="toggleFollow"
       />
     </div>
-    <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
-      <div class="fields">
-        Upload a new profile picture by clicking the image!
-        <br />
-        <span class="fileTypesSpan"
-          >(Supported file types: jpg, png, jpeg)</span
-        >
-        <br />
-      </div>
-    </div>
   </q-page>
 </template>
 
 <script>
-import { defineComponent, ref, toRaw } from "vue";
+import { defineComponent, ref, nextTick, toRaw } from "vue";
 import {
   ref as dbRef,
   get,
@@ -184,6 +174,7 @@ export default defineComponent({
       followed: false,
       followingCount: 0,
       followerCount: 0,
+      componentKey: 0,
       followerID: "",
       theyFollowed: false,
       receiverList: false,
@@ -460,8 +451,8 @@ export default defineComponent({
         })
           .then(() => {
             // Data saved successfully!
-
-            this.$router.go();
+            this.bio = this.newBio;
+            this.newBio = "";
           })
           .catch((error) => {
             // The write failed...
@@ -474,7 +465,10 @@ export default defineComponent({
         })
           .then(() => {
             // Data saved successfully!
-            this.$router.go();
+            this.profileName = this.newName;
+            this.bio = this.newBio;
+            this.newBio = "";
+            this.newName = "";
           })
           .catch((error) => {
             // The write failed...
@@ -486,7 +480,8 @@ export default defineComponent({
         })
           .then(() => {
             // Data saved successfully!
-            this.$router.go();
+            this.profileName = this.newName;
+            this.newName = "";
           })
           .catch((error) => {
             // The write failed...
@@ -623,7 +618,7 @@ export default defineComponent({
 .avatar {
   margin: 15px;
   margin-left: 40px;
-  width: 80px;
+  width: 100%;
   height: 80px;
   border-radius: 50%;
   border-width: 1px;
@@ -635,7 +630,7 @@ export default defineComponent({
 }
 .notYourAvatar {
   margin: 15px;
-  width: 80px;
+  width: 100%;
   height: 80px;
   margin-left: 40px;
   border-radius: 50%;

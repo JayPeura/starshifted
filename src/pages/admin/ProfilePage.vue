@@ -112,16 +112,6 @@
         @click="toggleFollow"
       />
     </div>
-    <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
-      <div class="fields">
-        Upload a new profile picture by clicking the image!
-        <br />
-        <span class="fileTypesSpan"
-          >(Supported file types: jpg, png, jpeg)</span
-        >
-        <br />
-      </div>
-    </div>
   </q-page>
 </template>
 
@@ -195,64 +185,61 @@ export default defineComponent({
     async handleRedirect() {
       const myID = auth.currentUser.uid;
 
-      const receiverList = await getDocs(
+      const participantList = await getDocs(
         fsQuery(
           collection(db, "chats/"),
-          where("receiverID", "in", [this.userID, myID])
+          where("participants", "array-contains", myID)
         )
       );
 
-      if (!receiverList.empty) {
-        receiverList.forEach(async (receiver) => {
-          const receiverID = receiver.data().receiverID;
-          const senderID = receiver.data().senderID;
-          const id = receiver.id;
-          console.log(id);
-          if (receiverID === myID) {
-            if (senderID === this.userID) {
-              this.$router.push("/messages/" + id);
+      if (!participantList.empty) {
+        participantList.forEach(async (receiver) => {
+          const participantsList = receiver.data();
+          const chatID = receiver.id;
+          if (
+            participantsList.participants.find(
+              (participant) => participant === myID
+            )
+          ) {
+            if (
+              participantsList.participants.find(
+                (participant) => participant === this.userID
+              )
+            ) {
+              this.$router.push("/messages/" + chatID);
             } else {
               await addDoc(collection(db, "chats"), {
                 lastMessage: "",
-                receiverID: this.userID,
-                senderID: myID,
-                theirImage: this.image,
+                theirImage: this.theirImage,
                 myImage: this.myImage,
                 lastMessageAt: Date.now(),
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else if (receiverID === this.userID) {
-            if (senderID === myID) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: this.userID,
-                senderID: myID,
-                theirImage: this.image,
-                myImage: this.myImage,
-                lastMessageAt: Date.now(),
+                participants: [this.userID, myID],
               }).then(async (docRef) => {
                 await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
                 this.$router.push("/messages/" + docRef.id);
               });
             }
           } else {
-            console.log("No chats with these ID's yet made.");
+            await addDoc(collection(db, "chats"), {
+              lastMessage: "",
+              theirImage: this.theirImage,
+              myImage: this.myImage,
+              lastMessageAt: Date.now(),
+              participants: [this.userID, myID],
+            }).then(async (docRef) => {
+              await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+              this.$router.push("/messages/" + docRef.id);
+            });
           }
         });
       } else {
         console.log("No data yet, creating...");
         await addDoc(collection(db, "chats"), {
           lastMessage: "",
-          receiverID: this.userID,
-          senderID: myID,
-          theirImage: this.image,
+          theirImage: this.theirImage,
           myImage: this.myImage,
           lastMessageAt: Date.now(),
+          participants: [this.userID, myID],
         }).then(async (docRef) => {
           await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
           this.$router.push("/messages/" + docRef.id);

@@ -207,15 +207,17 @@
                   flat
                   round
                   @click="toggleLiked(post)"
-                  :color="post.whoLiked[myID] ? 'red' : 'grey'"
-                  :icon="post.whoLiked[myID] ? 'favorite' : 'favorite_border'"
+                  :color="checkColor(post)"
+                  :icon="checkIcon(post)"
                   size="sm"
                 >
                   <span class="postLikes">
                     {{
-                      new Intl.NumberFormat("en-GB", {
-                        notation: "compact",
-                      }).format(post.likes)
+                      post.whoLiked !== undefined
+                        ? new Intl.NumberFormat("en-GB", {
+                            notation: "compact",
+                          }).format(Object.keys(post.whoLiked).length)
+                        : 0
                     }}
                   </span></q-btn
                 >
@@ -251,6 +253,7 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  deleteField,
 } from "firebase/firestore";
 import db, { database, auth, storage } from "src/boot/firebase";
 import {
@@ -308,6 +311,26 @@ export default defineComponent({
     };
   },
   methods: {
+    checkColor(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "grey";
+      } else if (post.whoLiked[myID]) {
+        return "red";
+      } else if (!post.whoLiked[myID]) {
+        return "grey";
+      }
+    },
+    checkIcon(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "favorite_border";
+      } else if (post.whoLiked[myID]) {
+        return "favorite";
+      } else if (!post.whoLiked[myID]) {
+        return "favorite_border";
+      }
+    },
     linkifyText(post) {
       const pattern1 =
         /(\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
@@ -355,10 +378,6 @@ export default defineComponent({
       let newPost = {
         content: this.newStarshiftingPost,
         date: Date.now(),
-        liked: false,
-        whoLiked: {
-          [`${creatorID}`]: false,
-        },
         isUserVerified: this.userVerified,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
@@ -366,7 +385,6 @@ export default defineComponent({
         creatorId: creatorID,
         postImg: this.imageUrl,
         likes: 0,
-        isHidden: false,
       };
       // this.posts.unshift(newPost);
       addDoc(collection(db, "posts"), newPost);
@@ -397,47 +415,42 @@ export default defineComponent({
         return;
       }
     },
-    toggleLiked(post) {
+    async toggleLiked(post) {
       const creatorID = auth.currentUser.uid;
       this.postID = post.id;
 
-      //check if likes are NaN and fix it
-
-      if (!post.whoLiked[creatorID]) {
+      if (post.whoLiked === undefined) {
+        const updateData = {
+          [`whoLiked.${creatorID}`]: true,
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (post.whoLiked[creatorID] === undefined) {
         const updateData = {
           [`whoLiked.${creatorID}`]: true,
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          [`whoLiked.${creatorID}`]: null,
+          whoLiked: deleteField([`${creatorID}`]),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
+      } else {
+        console.log("Toodaloo");
       }
     },
     async getLiked() {
-      const myID = auth.currentUser.uid;
+      const creatorID = auth.currentUser.uid;
 
-      const newQuerySnapshot = await getDocs(collection(db, "posts"));
-      newQuerySnapshot.forEach((post) => {
-        const postData = post.data();
-
-        if (postData.whoLiked === undefined) {
-          const updateData = {
-            [`whoLiked.${myID}`]: true,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        } else if (postData.whoLiked[myID]) {
-          const updateData = {
-            [`whoLiked.${myID}`]: true,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        } else {
-          const updateData = {
-            [`whoLiked.${myID}`]: null,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        }
+      const q = query(collection(db, "posts"));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.whoLiked === undefined) {
+            return;
+          } else if (data.whoLiked !== undefined) {
+          }
+          console.log(data.whoLiked);
+        });
       });
     },
     async getDelete(post) {
@@ -483,7 +496,6 @@ export default defineComponent({
             this.creatorImage = postChange.creatorImage;
             this.creatorVerified = postChange.isUserVerified;
             this.postImage = postChange.postImg;
-            this.postLikes = postChange.likes;
             this.postID = postChange.id;
             this.creatorID = postChange.creatorId;
             this.myPosts.unshift(postChange.id);
@@ -594,15 +606,6 @@ export default defineComponent({
           }
         });
       });
-    },
-  },
-  watch: {
-    isLiked(prev, next) {
-      if (this.isLiked) {
-        this.isLiked = false;
-      } else {
-        this.isLiked = true;
-      }
     },
   },
   async mounted() {
