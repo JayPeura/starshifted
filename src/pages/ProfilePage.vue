@@ -185,70 +185,38 @@ export default defineComponent({
   methods: {
     async handleRedirect() {
       const myID = auth.currentUser.uid;
-
-      const receiverList = await getDocs(
+      const participantList = await getDocs(
         fsQuery(
           collection(db, "chats/"),
-          where("receiverID", "in", [this.userID, myID])
+          where("participants", "array-contains", this.userID)
         )
       );
 
-      if (!receiverList.empty) {
-        receiverList.forEach(async (receiver) => {
-          const receiverID = receiver.data().receiverID;
-          const senderID = receiver.data().senderID;
-          const id = receiver.id;
-          console.log(id);
-          if (receiverID === myID) {
-            if (senderID === this.userID) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: this.userID,
-                senderID: myID,
-                theirImage: this.image,
-                myImage: this.myImage,
-                lastMessageAt: Date.now(),
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else if (receiverID === this.userID) {
-            if (senderID === myID) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: this.userID,
-                senderID: myID,
-                theirImage: this.image,
-                myImage: this.myImage,
-                lastMessageAt: Date.now(),
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else {
-            console.log("No chats with these ID's yet made.");
+      participantList.forEach(async (receiver) => {
+        const participantsList = receiver.data();
+        if (participantsList.participants.find((id) => id === myID)) {
+          const chatID = receiver.id;
+
+          this.$router.push("/messages/" + chatID);
+        } else {
+          if (
+            !participantsList.participants.includes(this.userID) &&
+            !participantsList.participants.includes(myID)
+          ) {
+            console.log("Creating chat");
+            await addDoc(collection(db, "chats"), {
+              lastMessage: "",
+              theirImage: this.theirImage,
+              myImage: this.myImage,
+              lastMessageAt: Date.now(),
+              participants: [this.userID, myID],
+            }).then(async (docRef) => {
+              await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+              this.$router.push("/messages/" + docRef.id);
+            });
           }
-        });
-      } else {
-        console.log("No data yet, creating...");
-        await addDoc(collection(db, "chats"), {
-          lastMessage: "",
-          receiverID: this.userID,
-          senderID: myID,
-          theirImage: this.image,
-          myImage: this.myImage,
-          lastMessageAt: Date.now(),
-        }).then(async (docRef) => {
-          await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-          this.$router.push("/messages/" + docRef.id);
-        });
-      }
+        }
+      });
     },
     pickFile() {
       this.$refs.fileInput.click();
@@ -508,9 +476,10 @@ export default defineComponent({
         const dbReff = dbRef(getDatabase());
         this.userID = key;
 
-        const userFollowRef = dbRef(database, "users/" + key);
+        const userFollowRef = dbRef(database, "users/" + userId);
         onValue(userFollowRef, (snapshot1) => {
-          const info = snapshot.val();
+          const info = snapshot1.val();
+          this.myImage = info.image;
         });
         get(child(dbReff, `users/${key}`))
           .then((snapshot) => {
