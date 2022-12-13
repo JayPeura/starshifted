@@ -185,38 +185,42 @@ export default defineComponent({
   methods: {
     async handleRedirect() {
       const myID = auth.currentUser.uid;
+
+      const IDs = [myID, this.userID];
+      const IDs2 = [this.userID, myID];
+
       const participantList = await getDocs(
-        fsQuery(
-          collection(db, "chats/"),
-          where("participants", "array-contains", this.userID)
-        )
+        fsQuery(collection(db, "chats"), where("participants", "==", IDs))
       );
 
-      participantList.forEach(async (receiver) => {
-        const participantsList = receiver.data();
-        if (participantsList.participants.find((id) => id === myID)) {
-          const chatID = receiver.id;
+      if (!participantList.empty) {
+        participantList.forEach(async (receiver) => {
+          const pList = receiver.data();
+          this.$router.push("/messages/" + pList.id);
+        });
+      } else {
+        const theirList = await getDocs(
+          fsQuery(collection(db, "chats"), where("participants", "==", IDs2))
+        );
+        if (!theirList.empty) {
+          theirList.forEach(async (theirs) => {
+            const tList = theirs.data();
 
-          this.$router.push("/messages/" + chatID);
+            this.$router.push("/messages/" + tList.id);
+          });
         } else {
-          if (
-            !participantsList.participants.includes(this.userID) &&
-            !participantsList.participants.includes(myID)
-          ) {
-            console.log("Creating chat");
-            await addDoc(collection(db, "chats"), {
-              lastMessage: "",
-              theirImage: this.theirImage,
-              myImage: this.myImage,
-              lastMessageAt: Date.now(),
-              participants: [this.userID, myID],
-            }).then(async (docRef) => {
-              await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-              this.$router.push("/messages/" + docRef.id);
-            });
-          }
+          await addDoc(collection(db, "chats"), {
+            lastMessage: "",
+            theirImage: this.image,
+            myImage: this.myImage,
+            lastMessageAt: Date.now(),
+            participants: [this.userID, myID],
+          }).then(async (docRef) => {
+            await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+            this.$router.push("/messages/" + docRef.id);
+          });
         }
-      });
+      }
     },
     pickFile() {
       this.$refs.fileInput.click();

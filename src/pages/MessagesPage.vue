@@ -255,39 +255,40 @@ export default {
     async handleRedirect(user) {
       const myID = auth.currentUser.uid;
 
+      const IDs = [myID, user.id];
+      const IDs2 = [user.id, myID];
+
       const participantList = await getDocs(
-        fsQuery(
-          collection(db, "chats/"),
-          where("participants", "array-contains", myID)
-        )
+        fsQuery(collection(db, "chats"), where("participants", "==", IDs))
       );
 
-      const theirList = await getDocs(
-        fsQuery(
-          collection(db, "chats"),
-          where("participants", "array-contains", user.id)
-        )
-      );
-
-      if (!participantList.empty && !theirList.empty) {
+      if (!participantList.empty) {
         participantList.forEach(async (receiver) => {
           const pList = receiver.data();
-          console.log(pList);
-          console.log("redirecting");
           this.$router.push("/messages/" + pList.id);
         });
       } else {
-        console.log("creating new");
-        await addDoc(collection(db, "chats"), {
-          lastMessage: "",
-          theirImage: this.theirImage,
-          myImage: this.myImage,
-          lastMessageAt: Date.now(),
-          participants: [user.id, myID],
-        }).then(async (docRef) => {
-          await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-          this.$router.push("/messages/" + docRef.id);
-        });
+        const theirList = await getDocs(
+          fsQuery(collection(db, "chats"), where("participants", "==", IDs2))
+        );
+        if (!theirList.empty) {
+          theirList.forEach(async (theirs) => {
+            const tList = theirs.data();
+
+            this.$router.push("/messages/" + tList.id);
+          });
+        } else {
+          await addDoc(collection(db, "chats"), {
+            lastMessage: "",
+            theirImage: this.theirImage,
+            myImage: this.myImage,
+            lastMessageAt: Date.now(),
+            participants: [user.id, myID],
+          }).then(async (docRef) => {
+            await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+            this.$router.push("/messages/" + docRef.id);
+          });
+        }
       }
     },
     handleChat(chat) {
