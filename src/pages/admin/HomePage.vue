@@ -245,6 +245,7 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  deleteField,
 } from "firebase/firestore";
 import db, { database, auth, storage } from "src/boot/firebase";
 import {
@@ -308,9 +309,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "grey";
-      } else if (post.whoLiked[myID]) {
+      } else if (post.whoLiked.includes(myID)) {
         return "red";
-      } else if (!post.whoLiked[myID]) {
+      } else if (!post.whoLiked.includes(myID)) {
         return "grey";
       }
     },
@@ -318,9 +319,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "favorite_border";
-      } else if (post.whoLiked[myID]) {
+      } else if (post.whoLiked.includes(myID)) {
         return "favorite";
-      } else if (!post.whoLiked[myID]) {
+      } else if (!post.whoLiked.includes(myID)) {
         return "favorite_border";
       }
     },
@@ -365,17 +366,13 @@ export default defineComponent({
       let newPost = {
         content: this.newStarshiftingPost,
         date: Date.now(),
-        liked: false,
-        whoLiked: {
-          [`${creatorID}`]: false,
-        },
+        whoLiked: [],
         isUserVerified: this.userVerified,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
         creatorImage: this.myImage,
         creatorId: creatorID,
         postImg: this.imageUrl,
-        likes: 0,
         isHidden: false,
       };
       // this.posts.unshift(newPost);
@@ -407,39 +404,33 @@ export default defineComponent({
       const creatorID = auth.currentUser.uid;
       this.postID = post.id;
 
+      console.log(post.whoLiked.findIndex((o) => o === creatorID));
       if (post.whoLiked === undefined) {
         const updateData = {
-          [`whoLiked.${creatorID}`]: true,
+          whoLiked: arrayUnion({
+            [`${creatorID}`]: {
+              dateLiked: Date.now(),
+            },
+          }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (post.whoLiked[creatorID] === undefined) {
+      } else if (!post.whoLiked.includes(creatorID)) {
         const updateData = {
-          [`whoLiked.${creatorID}`]: true,
+          whoLiked: arrayUnion({
+            [`${creatorID}`]: {
+              dateLiked: Date.now(),
+            },
+          }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (post.whoLiked[creatorID]) {
+      } else if (post.whoLiked.includes(creatorID)) {
         const updateData = {
-          whoLiked: deleteField([`${creatorID}`]),
+          whoLiked: arrayRemove(creatorID),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else {
         console.log("Toodaloo");
       }
-    },
-    async getLiked() {
-      const creatorID = auth.currentUser.uid;
-
-      const q = query(collection(db, "posts"));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.whoLiked === undefined) {
-            return;
-          } else if (data.whoLiked !== undefined) {
-          }
-          console.log(data.whoLiked);
-        });
-      });
     },
     async getDelete(post) {
       const myID = auth.currentUser.uid;
@@ -630,7 +621,6 @@ export default defineComponent({
         console.error(error);
       });
     this.getPosts();
-    this.getLiked();
   },
 });
 </script>

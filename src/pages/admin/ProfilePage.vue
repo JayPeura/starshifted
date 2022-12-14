@@ -113,170 +113,355 @@
           @click="toggleFollow"
         />
       </div>
-      <q-separator
-        class="q-mt-xl q-py-xs"
-        color="grey-10"
-        style="margin-bottom: -15px"
-      />
+      <q-separator class="q-mt-xl q-mb-sm q-py-xs" color="grey-10" />
 
-      <div class="postContainers">
-        <q-btn label="Posts" class="postsBtn"></q-btn>
-        <q-btn label="Liked Posts" class="likedPostsBtn"></q-btn>
-      </div>
-      <q-list separator>
-        <transition-group
-          appear
-          enter-active-class="animated fadeIn slow"
-          leave-active-class="animated fadeOut slow"
+      <q-card>
+        <q-tabs
+          v-model="tab"
+          dense
+          :class="
+            $q.dark.isActive ? 'bg-primary text-grey' : 'text-grey bg-grey-4'
+          "
+          :active-color="$q.dark.isActive ? 'secondary' : 'primary'"
+          :active-bg-color="$q.dark.isActive ? 'grey-10' : 'secondary'"
+          :indicator-color="$q.dark.isActive ? 'secondary' : 'primary'"
+          align="justify"
+          narrow-indicator
         >
-          <q-item v-for="post in posts" :key="post.id" class="q-py-md">
-            <q-item-section avatar top>
-              <label
-                for="actual-btn"
-                class="clickableLabel"
-                @click="handleRedirect(post)"
+          <q-tab name="posts" label="Posts" />
+          <q-tab name="likedPosts" label="Liked Posts" />
+        </q-tabs>
+
+        <q-separator />
+
+        <q-tab-panels v-model="tab" animated>
+          <q-tab-panel
+            name="posts"
+            :class="$q.dark.isActive ? 'bg-primary' : 'bg-secondary'"
+          >
+            <q-list separator>
+              <transition-group
+                appear
+                enter-active-class="animated fadeIn slow"
+                leave-active-class="animated fadeOut slow"
               >
-                <q-avatar round size="xl">
-                  <q-img v-bind:src="post.creatorImage" /> </q-avatar
-              ></label>
+                <q-item v-for="post in posts" :key="post.id" class="q-py-md">
+                  <q-item-section avatar top>
+                    <label
+                      for="actual-btn"
+                      class="clickableLabel"
+                      @click="handleRedirect(post)"
+                    >
+                      <q-avatar round size="xl">
+                        <q-img v-bind:src="post.creatorImage" /> </q-avatar
+                    ></label>
 
-              <button id="actual-btn" hidden></button>
-            </q-item-section>
+                    <button id="actual-btn" hidden></button>
+                  </q-item-section>
 
-            <q-item-section>
-              <q-item-label class="text-subtitle1" style="overflow: hidden"
-                ><strong @click="handleRedirect(post)" class="clickableLabel">{{
-                  post.creatorDisplayname
-                }}</strong>
-                <q-icon
-                  :name="post.isUserVerified ? 'verified' : ''"
-                  :class="
-                    post.isUserVerified
-                      ? 'showWhenVerified'
-                      : 'hideWhenNotVerified'
-                  "
-                />
-                <span
-                  class="text-grey-7"
-                  style="
-                    white-space: nowrap;
-                    text-overflow: ellipsis;
-                    width: 30px;
-                    overflow: hidden;
-                  "
-                >
-                  @{{ post.creatorUsername }}
-                  &bull;
-                </span>
-                <span
-                  class="text-grey-7"
-                  style="position: relative; padding-right: 50px"
-                >
-                  {{
-                    post.date > Date.now() - 35 * 60 * 60 * 1000
-                      ? formatDistanceStrict(post.date, new Date())
-                      : format(post.date, "d MMM")
-                  }}</span
-                >
-              </q-item-label>
-              <q-item-label class="post-content text-body1">
-                <span v-html="linkifyText(post)"></span>
-                <img :src="post.postImg" class="postImage" />
-              </q-item-label>
-              <div class="postMenu row justify-between q-mt-sm">
-                <q-btn flat round icon="more_vert" size="13px">
-                  <q-menu>
-                    <q-list style="min-width: 240px">
-                      <q-item v-if="post.creatorId !== myID" clickable>
-                        <q-item-section avatar>
-                          <q-icon
-                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                            name="person"
-                            size="sm"
-                          />
-                        </q-item-section>
-
-                        <q-item-section
-                          >{{ isFollowed ? "Follow " : "Unfollow " }} @{{
-                            post.creatorUsername
-                          }}</q-item-section
-                        >
-                      </q-item>
-                      <q-item clickable @click="deletePost(post)">
-                        <q-item-section avatar>
-                          <q-icon
-                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                            name="delete"
-                            class="text-red"
-                            size="sm"
-                        /></q-item-section>
-                        <q-item-section class="text-red"
-                          >Delete post</q-item-section
-                        >
-                      </q-item>
-                      <q-separator
-                        v-if="post.creatorId !== myID"
-                        color="grey-9"
-                      />
-                      <q-item
-                        v-if="post.creatorId !== myID"
-                        clickable
-                        outline
-                        @click="banUser(post)"
+                  <q-item-section>
+                    <q-item-label
+                      class="text-subtitle1"
+                      style="overflow: hidden"
+                      ><strong
+                        @click="handleRedirect(post)"
+                        class="clickableLabel"
+                        >{{ post.creatorDisplayname }}</strong
                       >
-                        <q-item-section avatar>
-                          <q-icon
-                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                            name="gavel"
-                            class="text-red"
-                            size="sm"
-                        /></q-item-section>
-                        <q-item-section class="text-red"
-                          >Ban user</q-item-section
-                        >
-                      </q-item>
-                    </q-list>
-                  </q-menu>
-                </q-btn>
-              </div>
-              <div
-                class="post-icons row justify-between q-mt-sm"
-                style="width: 80%"
-              >
-                <q-btn
-                  flat
-                  round
-                  color="grey"
-                  icon="chat_bubble_outline"
-                  size="sm"
-                  :to="'/admin/post/' + post.id"
-                />
-                <q-btn flat round color="grey" icon="cached" size="sm" />
-                <q-btn
-                  flat
-                  round
-                  @click="toggleLiked(post)"
-                  :color="checkColor(post)"
-                  :icon="checkIcon(post)"
-                  size="sm"
-                >
-                  <span class="postLikes">
-                    {{
-                      post.whoLiked !== undefined
-                        ? new Intl.NumberFormat("en-GB", {
-                            notation: "compact",
-                          }).format(Object.keys(post.whoLiked).length)
-                        : 0
-                    }}
-                  </span></q-btn
-                >
+                      <q-icon
+                        :name="post.isUserVerified ? 'verified' : ''"
+                        :class="
+                          post.isUserVerified
+                            ? 'showWhenVerified'
+                            : 'hideWhenNotVerified'
+                        "
+                      />
+                      <span class="text-grey-7 usernameStyle">
+                        @{{ post.creatorUsername }}
+                        &bull;
+                      </span>
+                      <span
+                        class="text-grey-7"
+                        style="position: relative; padding-right: 50px"
+                      >
+                        {{
+                          post.date > Date.now() - 35 * 60 * 60 * 1000
+                            ? formatDistanceStrict(post.date, new Date())
+                            : format(post.date, "d MMM")
+                        }}</span
+                      >
+                    </q-item-label>
+                    <q-item-label class="post-content text-body1">
+                      <span v-html="linkifyText(post)"></span>
+                      <img :src="post.postImg" class="postImage" />
+                    </q-item-label>
+                    <div class="postMenu row justify-between q-mt-sm">
+                      <q-btn flat round icon="more_vert" size="13px">
+                        <q-menu>
+                          <q-list style="min-width: 240px">
+                            <q-item v-if="post.creatorId !== myID" clickable>
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="person"
+                                  size="sm"
+                                />
+                              </q-item-section>
 
-                <q-btn flat round color="grey" icon="share" size="sm" />
-              </div>
-            </q-item-section>
-          </q-item>
-        </transition-group>
-      </q-list>
+                              <q-item-section
+                                >{{ getFollowed(post) }} @{{
+                                  post.creatorUsername
+                                }}</q-item-section
+                              >
+                            </q-item>
+                            <q-item clickable @click="deletePost(post)">
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="delete"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Delete post</q-item-section
+                              >
+                            </q-item>
+                            <q-separator
+                              v-if="post.creatorId !== myID"
+                              color="grey-9"
+                            />
+                            <q-item
+                              v-if="post.creatorId !== myID"
+                              clickable
+                              outline
+                              @click="banUser(post)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="gavel"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Ban user</q-item-section
+                              >
+                            </q-item>
+                          </q-list>
+                        </q-menu>
+                      </q-btn>
+                    </div>
+                    <div
+                      class="post-icons row justify-between q-mt-sm"
+                      style="width: 80%"
+                    >
+                      <q-btn
+                        flat
+                        round
+                        color="grey"
+                        icon="chat_bubble_outline"
+                        size="sm"
+                        :to="'/admin/post/' + post.id"
+                      />
+                      <q-btn flat round color="grey" icon="cached" size="sm" />
+                      <q-btn
+                        flat
+                        round
+                        @click="toggleLiked(post)"
+                        :color="checkColor(post)"
+                        :icon="checkIcon(post)"
+                        size="sm"
+                      >
+                        <span class="postLikes">
+                          {{
+                            post.whoLiked !== undefined
+                              ? new Intl.NumberFormat("en-GB", {
+                                  notation: "compact",
+                                }).format(Object.keys(post.whoLiked).length)
+                              : 0
+                          }}
+                        </span></q-btn
+                      >
+
+                      <q-btn flat round color="grey" icon="share" size="sm" />
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </transition-group> </q-list
+          ></q-tab-panel>
+
+          <q-tab-panel
+            name="likedPosts"
+            :class="$q.dark.isActive ? 'bg-primary' : 'bg-secondary'"
+          >
+            <q-list separator>
+              <transition-group
+                appear
+                enter-active-class="animated fadeIn slow"
+                leave-active-class="animated fadeOut slow"
+              >
+                <q-item
+                  v-for="post in likedPosts"
+                  :key="post.id"
+                  class="q-py-md"
+                >
+                  <q-item-section avatar top>
+                    <label
+                      for="actual-btn"
+                      class="clickableLabel"
+                      @click="handleRedirect(post)"
+                    >
+                      <q-avatar round size="xl">
+                        <q-img v-bind:src="post.creatorImage" /> </q-avatar
+                    ></label>
+
+                    <button id="actual-btn" hidden></button>
+                  </q-item-section>
+
+                  <q-item-section>
+                    <q-item-label
+                      class="text-subtitle1"
+                      style="overflow: hidden"
+                      ><strong
+                        @click="handleRedirect(post)"
+                        class="clickableLabel"
+                        >{{ post.creatorDisplayname }}</strong
+                      >
+                      <q-icon
+                        :name="post.isUserVerified ? 'verified' : ''"
+                        :class="
+                          post.isUserVerified
+                            ? 'showWhenVerified'
+                            : 'hideWhenNotVerified'
+                        "
+                      />
+                      <span class="text-grey-7 usernameStyle">
+                        @{{ post.creatorUsername }}
+                        &bull;
+                      </span>
+                      <span
+                        class="text-grey-7"
+                        style="position: relative; padding-right: 50px"
+                      >
+                        {{
+                          post.date > Date.now() - 35 * 60 * 60 * 1000
+                            ? formatDistanceStrict(post.date, new Date())
+                            : format(post.date, "d MMM")
+                        }}</span
+                      >
+                    </q-item-label>
+                    <q-item-label class="post-content text-body1">
+                      <span v-html="linkifyText(post)"></span>
+                      <img :src="post.postImg" class="postImage" />
+                    </q-item-label>
+                    <div class="postMenu row justify-between q-mt-sm">
+                      <q-btn flat round icon="more_vert" size="13px">
+                        <q-menu>
+                          <q-list style="min-width: 240px">
+                            <q-item v-if="post.creatorId !== myID" clickable>
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="person"
+                                  size="sm"
+                                />
+                              </q-item-section>
+
+                              <q-item-section
+                                >{{ getFollowed(post) }} @{{
+                                  post.creatorUsername
+                                }}</q-item-section
+                              >
+                            </q-item>
+                            <q-item clickable @click="deletePost(post)">
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="delete"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Delete post</q-item-section
+                              >
+                            </q-item>
+                            <q-separator
+                              v-if="post.creatorId !== myID"
+                              color="grey-9"
+                            />
+                            <q-item
+                              v-if="post.creatorId !== myID"
+                              clickable
+                              outline
+                              @click="banUser(post)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="gavel"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Ban user</q-item-section
+                              >
+                            </q-item>
+                          </q-list>
+                        </q-menu>
+                      </q-btn>
+                    </div>
+                    <div
+                      class="post-icons row justify-between q-mt-sm"
+                      style="width: 80%"
+                    >
+                      <q-btn
+                        flat
+                        round
+                        color="grey"
+                        icon="chat_bubble_outline"
+                        size="sm"
+                        :to="'/admin/post/' + post.id"
+                      />
+                      <q-btn flat round color="grey" icon="cached" size="sm" />
+                      <q-btn
+                        flat
+                        round
+                        @click="toggleLiked(post)"
+                        :color="checkColor(post)"
+                        :icon="checkIcon(post)"
+                        size="sm"
+                      >
+                        <span class="postLikes">
+                          {{
+                            post.whoLiked !== undefined
+                              ? new Intl.NumberFormat("en-GB", {
+                                  notation: "compact",
+                                }).format(Object.keys(post.whoLiked).length)
+                              : 0
+                          }}
+                        </span></q-btn
+                      >
+
+                      <q-btn flat round color="grey" icon="share" size="sm" />
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </transition-group> </q-list
+          ></q-tab-panel>
+        </q-tab-panels>
+      </q-card>
     </q-scroll-area>
   </q-page>
 </template>
@@ -308,6 +493,9 @@ import {
   limit,
   where,
   orderBy,
+  deleteField,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import db, { auth, database, storage } from "../../boot/firebase";
@@ -328,6 +516,7 @@ export default defineComponent({
       newName: "",
       bio: "",
       newBio: "",
+      tab: ref("posts"),
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       myImage:
@@ -358,13 +547,16 @@ export default defineComponent({
     };
   },
   methods: {
+    getFollowed() {
+      const myID = auth.currentUser.uid;
+    },
     checkColor(post) {
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "grey";
-      } else if (post.whoLiked[myID]) {
+      } else if (post.whoLiked.includes(myID)) {
         return "red";
-      } else if (!post.whoLiked[myID]) {
+      } else if (!post.whoLiked.includes(myID)) {
         return "grey";
       }
     },
@@ -372,9 +564,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "favorite_border";
-      } else if (post.whoLiked[myID]) {
+      } else if (post.whoLiked.includes(myID)) {
         return "favorite";
-      } else if (!post.whoLiked[myID]) {
+      } else if (!post.whoLiked.includes(myID)) {
         return "favorite_border";
       }
     },
@@ -399,123 +591,290 @@ export default defineComponent({
         allowedIframeHostnames: ["www.youtube.com"],
       });
     },
-    toggleShowPosts() {
-      this.showPosts = !this.showPosts;
-      this.showLikedPosts = !this.showLikedPosts;
+    deletePost(post) {
+      if (auth.currentUser.uid === post.creatorId) {
+        deleteDoc(doc(db, "posts", post.id));
+      } else {
+        return;
+      }
+    },
+    async toggleLiked(post) {
+      const creatorID = auth.currentUser.uid;
+      this.postID = post.id;
+
+      if (post.whoLiked === undefined) {
+        const updateData = {
+          whoLiked: arrayUnion(creatorID),
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (!post.whoLiked.includes(creatorID)) {
+        const updateData = {
+          whoLiked: arrayUnion(creatorID),
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (post.whoLiked.includes(creatorID)) {
+        const updateData = {
+          whoLiked: arrayRemove(creatorID),
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else {
+        console.log("Toodaloo");
+      }
     },
     getPosts() {
       const myID = auth.currentUser.uid;
 
-      const q = fsQuery(
-        collection(db, "posts"),
-        where("creatorId", "==", myID),
-        orderBy("date")
+      const username = window.location.href.split("profile/")[1];
+
+      const db2 = getDatabase();
+      const q2 = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
       );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          let postChange = change.doc.data();
-          postChange.id = change.doc.id;
-          this.postID = postChange.id;
-          this.creatorID = postChange.creatorId;
+      get(q2).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+          const dbReff = dbRef(getDatabase());
+          const q = fsQuery(
+            collection(db, "posts"),
+            where("creatorId", "==", this.userID),
+            orderBy("date")
+          );
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              let postChange = change.doc.data();
+              postChange.id = change.doc.id;
+              this.postID = postChange.id;
+              this.creatorID = postChange.creatorId;
 
-          if (change.type === "added") {
-            this.creatorUsername = postChange.creatorUsername;
-            this.creatorDisplayname = postChange.creatorDisplayname;
-            this.creatorImage = postChange.creatorImage;
-            this.creatorVerified = postChange.isUserVerified;
-            this.postImage = postChange.postImg;
-            this.postLikes = postChange.likes;
-            this.postID = postChange.id;
-            this.creatorID = postChange.creatorId;
-            this.posts.unshift(postChange);
-            //   this.myPosts.unshift(postChange.id);
+              if (change.type === "added") {
+                this.creatorUsername = postChange.creatorUsername;
+                this.creatorDisplayname = postChange.creatorDisplayname;
+                this.creatorImage = postChange.creatorImage;
+                this.creatorVerified = postChange.isUserVerified;
+                this.postImage = postChange.postImg;
+                this.postLikes = postChange.likes;
+                this.postID = postChange.id;
+                this.creatorID = postChange.creatorId;
+                this.posts.unshift(postChange);
 
-            //   if (postChange.creatorId === this.creatorID) {
-            //     const joinedArray = this.myPosts.join(" ");
-            //     const array = joinedArray.split(" ");
-            //     const filteredArray = array.find(
-            //       (item) => item === postChange.id
-            //     );
+                //   if (postChange.creatorId === this.creatorID) {
+                //     const joinedArray = this.myPosts.join(" ");
+                //     const array = joinedArray.split(" ");
+                //     const filteredArray = array.find(
+                //       (item) => item === postChange.id
+                //     );
 
-            //     const usernameRef = dbRef(
-            //       database,
-            //       "users/" + postChange.creatorId
-            //     );
-            //     onValue(usernameRef, (snapshot) => {
-            //       if (snapshot.val() !== null) {
-            //         const data = snapshot.val();
-            //         if (data.verified === undefined) {
-            //           this.userVerified = false;
-            //           this.currUsername = data.username;
-            //           this.currName = data.displayName;
-            //           if (this.creatorID === myID && this.postID) {
-            //             const replaceInfo = doc(db, "posts/", filteredArray);
-            //             const newInfo = {
-            //               creatorUsername: data.username,
-            //               creatorDisplayname: data.displayName,
-            //               isUserVerified: false,
-            //               creatorImage: data.image,
-            //               isHidden: false,
-            //             };
-            //             updateDoc(replaceInfo, newInfo);
-            //           } else if (!this.creatorID === myID) {
-            //             const replaceInfo = doc(db, "posts/", filteredArray);
-            //             const newInfo = {
-            //               isHidden: true,
-            //             };
-            //             updateDoc(replaceInfo, newInfo);
-            //           }
-            //           const replaceInfo = doc(db, "posts/", filteredArray);
-            //           const newInfo = {
-            //             isUserVerified: this.userVerified,
-            //           };
-            //           updateDoc(replaceInfo, newInfo);
-            //         } else {
-            //           this.userVerified = data.verified;
-            //           this.currUsername = data.username;
-            //           this.currName = data.displayName;
+                //     const usernameRef = dbRef(
+                //       database,
+                //       "users/" + postChange.creatorId
+                //     );
+                //     onValue(usernameRef, (snapshot) => {
+                //       if (snapshot.val() !== null) {
+                //         const data = snapshot.val();
+                //         if (data.verified === undefined) {
+                //           this.userVerified = false;
+                //           this.currUsername = data.username;
+                //           this.currName = data.displayName;
+                //           if (this.creatorID === myID && this.postID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               creatorUsername: data.username,
+                //               creatorDisplayname: data.displayName,
+                //               isUserVerified: false,
+                //               creatorImage: data.image,
+                //               isHidden: false,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           } else if (!this.creatorID === myID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               isHidden: true,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           }
+                //           const replaceInfo = doc(db, "posts/", filteredArray);
+                //           const newInfo = {
+                //             isUserVerified: this.userVerified,
+                //           };
+                //           updateDoc(replaceInfo, newInfo);
+                //         } else {
+                //           this.userVerified = data.verified;
+                //           this.currUsername = data.username;
+                //           this.currName = data.displayName;
 
-            //           if (this.creatorID === myID && this.postID) {
-            //             const replaceInfo = doc(db, "posts/", filteredArray);
-            //             const newInfo = {
-            //               creatorUsername: data.username,
-            //               creatorDisplayname: data.displayName,
-            //               isUserVerified: data.verified,
-            //               creatorImage: data.image,
-            //               isHidden: false,
-            //             };
-            //             updateDoc(replaceInfo, newInfo);
-            //           } else if (!this.creatorID === myID) {
-            //             const replaceInfo = doc(db, "posts/", filteredArray);
-            //             const newInfo = {
-            //               isHidden: true,
-            //             };
-            //             updateDoc(replaceInfo, newInfo);
-            //           }
-            //           const replaceInfo = doc(db, "posts/", filteredArray);
-            //           const newInfo = {
-            //             isUserVerified: this.userVerified,
-            //           };
-            //           updateDoc(replaceInfo, newInfo);
-            //         }
-            //       }
-            //     });
-            //   }
-          }
+                //           if (this.creatorID === myID && this.postID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               creatorUsername: data.username,
+                //               creatorDisplayname: data.displayName,
+                //               isUserVerified: data.verified,
+                //               creatorImage: data.image,
+                //               isHidden: false,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           } else if (!this.creatorID === myID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               isHidden: true,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           }
+                //           const replaceInfo = doc(db, "posts/", filteredArray);
+                //           const newInfo = {
+                //             isUserVerified: this.userVerified,
+                //           };
+                //           updateDoc(replaceInfo, newInfo);
+                //         }
+                //       }
+                //     });
+                //   }
+              }
 
-          if (change.type === "modified") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            Object.assign(this.posts[index], postChange);
-          }
-          if (change.type === "removed") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            this.posts.splice(index, 1);
-          }
-        });
+              if (change.type === "modified") {
+                let index = this.posts.findIndex(
+                  (post) => post.id === postChange.id
+                );
+                Object.assign(this.posts[index], postChange);
+              }
+              if (change.type === "removed") {
+                let index = this.posts.findIndex(
+                  (post) => post.id === postChange.id
+                );
+                this.posts.splice(index, 1);
+              }
+            });
+          });
+        }
+      });
+    },
+    getLikedPosts() {
+      const myID = auth.currentUser.uid;
+
+      const username = window.location.href.split("profile/")[1];
+
+      const db2 = getDatabase();
+      const q2 = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
+      );
+      get(q2).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+          const dbReff = dbRef(getDatabase());
+          const q = fsQuery(
+            collection(db, "posts"),
+            where(`whoLiked`, "array-contains", key)
+          );
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              let postChange = change.doc.data();
+              postChange.id = change.doc.id;
+              this.postID = postChange.id;
+              this.creatorID = postChange.creatorId;
+
+              if (change.type === "added") {
+                this.creatorUsername = postChange.creatorUsername;
+                this.creatorDisplayname = postChange.creatorDisplayname;
+                this.creatorImage = postChange.creatorImage;
+                this.creatorVerified = postChange.isUserVerified;
+                this.postImage = postChange.postImg;
+                this.postLikes = postChange.likes;
+                this.postID = postChange.id;
+                this.creatorID = postChange.creatorId;
+                this.likedPosts.unshift(postChange);
+                //   this.myPosts.unshift(postChange.id);
+
+                //   if (postChange.creatorId === this.creatorID) {
+                //     const joinedArray = this.myPosts.join(" ");
+                //     const array = joinedArray.split(" ");
+                //     const filteredArray = array.find(
+                //       (item) => item === postChange.id
+                //     );
+
+                //     const usernameRef = dbRef(
+                //       database,
+                //       "users/" + postChange.creatorId
+                //     );
+                //     onValue(usernameRef, (snapshot) => {
+                //       if (snapshot.val() !== null) {
+                //         const data = snapshot.val();
+                //         if (data.verified === undefined) {
+                //           this.userVerified = false;
+                //           this.currUsername = data.username;
+                //           this.currName = data.displayName;
+                //           if (this.creatorID === myID && this.postID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               creatorUsername: data.username,
+                //               creatorDisplayname: data.displayName,
+                //               isUserVerified: false,
+                //               creatorImage: data.image,
+                //               isHidden: false,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           } else if (!this.creatorID === myID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               isHidden: true,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           }
+                //           const replaceInfo = doc(db, "posts/", filteredArray);
+                //           const newInfo = {
+                //             isUserVerified: this.userVerified,
+                //           };
+                //           updateDoc(replaceInfo, newInfo);
+                //         } else {
+                //           this.userVerified = data.verified;
+                //           this.currUsername = data.username;
+                //           this.currName = data.displayName;
+
+                //           if (this.creatorID === myID && this.postID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               creatorUsername: data.username,
+                //               creatorDisplayname: data.displayName,
+                //               isUserVerified: data.verified,
+                //               creatorImage: data.image,
+                //               isHidden: false,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           } else if (!this.creatorID === myID) {
+                //             const replaceInfo = doc(db, "posts/", filteredArray);
+                //             const newInfo = {
+                //               isHidden: true,
+                //             };
+                //             updateDoc(replaceInfo, newInfo);
+                //           }
+                //           const replaceInfo = doc(db, "posts/", filteredArray);
+                //           const newInfo = {
+                //             isUserVerified: this.userVerified,
+                //           };
+                //           updateDoc(replaceInfo, newInfo);
+                //         }
+                //       }
+                //     });
+                //   }
+              }
+
+              if (change.type === "modified") {
+                let index = this.likedPosts.findIndex(
+                  (post) => post.id === postChange.id
+                );
+                Object.assign(this.likedPosts[index], postChange);
+              }
+              if (change.type === "removed") {
+                let index = this.likedPosts.findIndex(
+                  (post) => post.id === postChange.id
+                );
+                this.likedPosts.splice(index, 1);
+              }
+            });
+          });
+        }
       });
     },
     async handleRedirect() {
@@ -531,7 +890,7 @@ export default defineComponent({
       if (!participantList.empty) {
         participantList.forEach(async (receiver) => {
           const pList = receiver.data();
-          this.$router.push("/messages/" + pList.id);
+          this.$router.push("/admin/messages/" + pList.id);
         });
       } else {
         const theirList = await getDocs(
@@ -541,7 +900,7 @@ export default defineComponent({
           theirList.forEach(async (theirs) => {
             const tList = theirs.data();
 
-            this.$router.push("/messages/" + tList.id);
+            this.$router.push("/admin/messages/" + tList.id);
           });
         } else {
           await addDoc(collection(db, "chats"), {
@@ -552,7 +911,7 @@ export default defineComponent({
             participants: [this.userID, myID],
           }).then(async (docRef) => {
             await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-            this.$router.push("/messages/" + docRef.id);
+            this.$router.push("/admin/messages/" + docRef.id);
           });
         }
       }
@@ -574,7 +933,7 @@ export default defineComponent({
     toggleFollow() {
       const followerID = auth.currentUser.uid;
 
-      const username = window.location.href.split("profile/")[1];
+      const username = window.location.href.split("admin/profile/")[1];
 
       const db2 = getDatabase();
       const q = query(
@@ -852,6 +1211,7 @@ export default defineComponent({
     });
     this.getFollows();
     this.getPosts();
+    this.getLikedPosts();
   },
 });
 </script>
@@ -861,6 +1221,28 @@ export default defineComponent({
   right: 10px;
   top: 0;
 }
+
+.post-icons {
+  align-items: center;
+  padding: 0;
+  .postLikes {
+    display: flex;
+    position: absolute;
+    font-size: 16px;
+    color: grey;
+    margin-left: 60px;
+  }
+}
+.post-content {
+  white-space: pre-line;
+}
+.usernameStyle {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 30px;
+  overflow: hidden;
+}
+
 .postContainers {
   margin-top: 40px;
   display: flex;
