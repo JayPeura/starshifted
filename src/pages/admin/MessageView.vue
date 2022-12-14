@@ -44,6 +44,7 @@
             "
             size="5"
             text-color="white"
+            ref="scrollPage"
           >
             <template v-if="myID === message.senderID" v-slot:avatar>
               <img
@@ -278,20 +279,15 @@ export default {
       const myID = auth.currentUser.uid;
       const id = this.$route.params.chatID;
       const getReceiverID = await getDoc(doc(db, "chats/" + id));
-      const receiver = getReceiverID.data().receiverID;
-      const sender = getReceiverID.data().senderID;
-
-      if (receiver === myID) {
-        this.receiverID = sender;
-      } else {
-        this.receiverID = receiver;
-      }
+      const receiver = getReceiverID
+        .data()
+        .participants.find((id) => id !== myID);
 
       const newMessageContent = {
         content: this.content,
         date: Date.now(),
         senderID: myID,
-        receiverID: this.receiverID,
+        receiverID: receiver,
         receiverVerified: this.theyVerified,
         receiverUsername: this.theirUsername,
         senderName: this.myName,
@@ -352,50 +348,30 @@ export default {
 
     const id = this.$route.params.chatID;
     const getReceiverID = await getDoc(doc(db, "chats/" + id));
-    const receiver = getReceiverID.data().receiverID;
-    const sender = getReceiverID.data().senderID;
-
+    const receiver = getReceiverID
+      .data()
+      .participants.find((id) => id !== myID);
     const dbReff = dbRef(getDatabase());
 
-    if (receiver === myID) {
-      get(child(dbReff, `users/${sender}`))
-        .then((snapshot) => {
-          if (snapshot.exists()) {
-            this.theirName = snapshot.val().displayName;
-            this.theirUsername = snapshot.val().username;
-            this.theirImage = snapshot.val().image;
-            if (snapshot.val().verified !== undefined) {
-              this.theyVerified = snapshot.val().verified;
-            } else {
-              this.theyVerified = false;
-            }
+    get(child(dbReff, `users/${receiver}`))
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          this.theirName = snapshot.val().displayName;
+          this.theirUsername = snapshot.val().username;
+          this.theirImage = snapshot.val().image;
+          if (snapshot.val().verified !== undefined) {
+            this.theyVerified = snapshot.val().verified;
           } else {
-            console.log("No data available");
+            this.theyVerified = false;
           }
-        })
-        .catch((error) => {
-          console.error(error);
-        });
-    } else {
-      get(child(dbReff, `users/${receiver}`))
-        .then((snapshot) => {
-          if (snapshot.exists()) {
-            this.theirName = snapshot.val().displayName;
-            this.theirUsername = snapshot.val().username;
-            this.theirImage = snapshot.val().image;
-            if (snapshot.val().verified !== undefined) {
-              this.theyVerified = snapshot.val().verified;
-            } else {
-              this.theyVerified = false;
-            }
-          } else {
-            console.log("No data available");
-          }
-        })
-        .catch((error) => {
-          console.error(error);
-        });
-    }
+        } else {
+          console.log("No data available");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
     const db2 = getDatabase();
     const userQ = dbQuery(dbRef(db2, "users"));
     get(userQ).then((snapshot) => {

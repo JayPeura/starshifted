@@ -14,7 +14,6 @@
       </div>
       <div class="search">
         <div class="searchForm">
-          <q-icon name="search" size="md" class="searchIcon" />
           <q-input
             type="text"
             placeholder="Search for a user"
@@ -23,18 +22,21 @@
             class="searchInput"
             :bg-color="$q.dark.isActive ? 'transparent' : 'transparent'"
             @keydown.enter="handleSearch(value)"
-          />
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" size="md" /> </template
+          ></q-input>
         </div>
       </div>
       <div class="full-width">
         <q-list
           v-for="user in users"
           :key="user.id"
-          bordered
+          :bordered="user.id !== myID"
           class="q-mb-sm q-mt-sm"
         >
           <q-item
-            v-if="user.value.displayName"
+            v-if="user.value.displayName && user.id !== myID"
             @click="handleRedirect(user)"
             class="q-my-md"
             clickable
@@ -64,12 +66,7 @@
         </q-list>
 
         <q-list v-for="chat in chats" :key="chat.id">
-          <q-item
-            v-if="myID === chat.senderID || myID === chat.receiverID"
-            @click="handleChat(chat)"
-            class="q-my-md"
-            clickable
-          >
+          <q-item @click="handleChat(chat)" class="q-my-md" clickable>
             <q-item-section avatar>
               <q-avatar round size="xl">
                 <q-img
@@ -83,24 +80,13 @@
             </q-item-section>
 
             <q-item-section>
-              <q-item-label
-                v-if="myID === chat.senderID || myID === chat.receiverID"
-                class="text-subtitle2"
+              <q-item-label class="text-subtitle2"
                 ><strong>{{
                   chat.myUsername === myUsername ? chat.theirName : chat.myName
                 }}</strong>
                 <q-icon
-                  :name="
-                    theyVerified === chat.theyVerified &&
-                    myVerified === chat.theyVerified
-                      ? 'verified'
-                      : ''
-                  "
-                  :class="
-                    chat.theyVerified
-                      ? 'showWhenVerified'
-                      : 'hideWhenNotVerified'
-                  "
+                  :name="checkVerifiedName(chat)"
+                  :class="checkVerifiedClass(chat)"
                 />
                 <span class="text-grey-7">
                   @{{
@@ -145,6 +131,7 @@ import {
   addDoc,
   doc,
   updateDoc,
+  limit,
 } from "firebase/firestore";
 import {
   ref as dbRef,
@@ -201,6 +188,40 @@ export default {
     },
   },
   methods: {
+    checkVerifiedClass(chat) {
+      if (chat.theyVerified && this.theyVerified) {
+        return "showWhenVerified";
+      } else if (chat.myVerified && this.theyVerified) {
+        return "showWhenVerified";
+      } else if (chat.myVerified && chat.theyVerified) {
+        return "showWhenVerified";
+      } else if (!chat.myVerified) {
+        return "hideWhenNotVerified";
+      } else if (!chat.myVerified && !this.myVerified) {
+        return "hideWhenNotVerified";
+      } else if (!chat.theyVerified && !this.myVerified) {
+        return "hideWhenNotVerified";
+      } else if (!chat.theyVerified && !this.theyVerified) {
+        return "hideWhenNotVerified";
+      }
+    },
+    checkVerifiedName(chat) {
+      if (chat.theyVerified && this.theyVerified) {
+        return "verified";
+      } else if (chat.myVerified && this.theyVerified) {
+        return "verified";
+      } else if (chat.myVerified && chat.theyVerified) {
+        return "verified";
+      } else if (!chat.myVerified) {
+        return "";
+      } else if (!chat.myVerified && !this.myVerified) {
+        return "";
+      } else if (!chat.theyVerified && !this.myVerified) {
+        return "";
+      } else if (!chat.theyVerified && !this.theyVerified) {
+        return "";
+      }
+    },
     async handleSearch(value) {
       const db2 = getDatabase();
 
@@ -222,11 +243,6 @@ export default {
               id,
               value,
             }));
-
-            // this.users = Object.keys(data).map(function (key) {
-            //   return { [data]: data[key] };
-            // });
-            // console.log(toRaw(this.users));
           }
         });
       }
@@ -234,61 +250,40 @@ export default {
     async handleRedirect(user) {
       const myID = auth.currentUser.uid;
 
-      const receiverList = await getDocs(
-        fsQuery(
-          collection(db, "chats/"),
-          where("receiverID", "in", [user.id, myID])
-        )
+      const IDs = [myID, user.id];
+      const IDs2 = [user.id, myID];
+
+      const participantList = await getDocs(
+        fsQuery(collection(db, "chats"), where("participants", "==", IDs))
       );
 
-      if (!receiverList.empty) {
-        receiverList.forEach(async (receiver) => {
-          const receiverID = receiver.data().receiverID;
-          const senderID = receiver.data().senderID;
-          const id = receiver.id;
-          if (receiverID === myID) {
-            if (senderID === user.id) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: user.id,
-                senderID: myID,
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else if (receiverID === user.id) {
-            if (senderID === myID) {
-              this.$router.push("/messages/" + id);
-            } else {
-              await addDoc(collection(db, "chats"), {
-                lastMessage: "",
-                receiverID: user.id,
-                senderID: myID,
-              }).then(async (docRef) => {
-                await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-                this.$router.push("/messages/" + docRef.id);
-              });
-            }
-          } else {
-            console.log("No chats with these ID's yet made.");
-          }
+      if (!participantList.empty) {
+        participantList.forEach(async (receiver) => {
+          const pList = receiver.data();
+          this.$router.push("/admin/messages/" + pList.id);
         });
       } else {
-        console.log("No data yet, creating...");
-        await addDoc(collection(db, "chats"), {
-          lastMessage: "",
-          receiverID: user.id,
-          theirImage: this.theirImage,
-          myImage: this.myImage,
-          lastMessageAt: Date.now(),
-          senderID: myID,
-        }).then(async (docRef) => {
-          await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
-          this.$router.push("/messages/" + docRef.id);
-        });
+        const theirList = await getDocs(
+          fsQuery(collection(db, "chats"), where("participants", "==", IDs2))
+        );
+        if (!theirList.empty) {
+          theirList.forEach(async (theirs) => {
+            const tList = theirs.data();
+
+            this.$router.push("/admin/messages/" + tList.id);
+          });
+        } else {
+          await addDoc(collection(db, "chats"), {
+            lastMessage: "",
+            theirImage: this.theirImage,
+            myImage: this.myImage,
+            lastMessageAt: Date.now(),
+            participants: [user.id, myID],
+          }).then(async (docRef) => {
+            await updateDoc(doc(db, "chats", docRef.id), { id: docRef.id });
+            this.$router.push("/admin/messages/" + docRef.id);
+          });
+        }
       }
     },
     handleChat(chat) {
@@ -297,27 +292,33 @@ export default {
     async getChats() {
       const myID = auth.currentUser.uid;
 
-      const receiverQuery = await fsQuery(
-        collection(db, "chats/"),
+      const participantQuery = await fsQuery(
+        collection(db, "chats"),
+        where("participants", "array-contains", myID),
         orderBy("lastMessageAt", "asc")
       );
 
-      const unsubscribe = onSnapshot(receiverQuery, (querySnapshot) => {
+      const unsubscribe = onSnapshot(participantQuery, (querySnapshot) => {
         querySnapshot.docChanges().forEach((chats) => {
           let data = chats.doc.data();
           data.id = chats.doc.id;
 
-          if (chats.type === "added") {
-            this.chats.unshift(data);
-          }
-          if (chats.type === "modified") {
-            let index = this.chats.findIndex((chat) => chat.id === data.id);
-            this.chats.splice(index, 1);
-            this.chats.unshift(data);
-          }
-          if (chats.type === "removed") {
-            let index = this.chats.findIndex((chat) => chat.id === data.id);
-            this.chats.splice(index, 1);
+          if (
+            data.participants.includes(this.userID && myID) &&
+            data.lastMessage !== ""
+          ) {
+            if (chats.type === "added") {
+              this.chats.unshift(data);
+            }
+            if (chats.type === "modified") {
+              let index = this.chats.findIndex((chat) => chat.id === data.id);
+              this.chats.splice(index, 1);
+              this.chats.unshift(data);
+            }
+            if (chats.type === "removed") {
+              let index = this.chats.findIndex((chat) => chat.id === data.id);
+              this.chats.splice(index, 1);
+            }
           }
         });
       });
@@ -327,17 +328,20 @@ export default {
     const myID = auth.currentUser.uid;
 
     const receiverList = await getDocs(
-      fsQuery(collection(db, "chats"), where("senderID", "==", myID))
+      fsQuery(
+        collection(db, "chats"),
+        where("participants", "array-contains", myID)
+      )
     );
     receiverList.forEach(async (chats) => {
       const id = chats.id;
       const data = chats.data();
-      this.userID = data.senderID;
-
+      const theirID = data.participants.find((id) => id !== myID);
+      this.userID = theirID;
       const db2 = getDatabase();
 
       const dbReff = dbRef(getDatabase());
-      get(child(dbReff, `users/${data.senderID}`))
+      get(child(dbReff, `users/${theirID}`))
         .then((snapshot) => {
           if (snapshot.exists()) {
             this.theirUsername = snapshot.val().username;

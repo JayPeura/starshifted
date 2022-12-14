@@ -358,7 +358,7 @@ export default defineComponent({
       this.imageShow = true;
     },
     handleRedirect(post) {
-      this.$router.push("/profile/" + post.creatorUsername);
+      this.$router.push("/admin/profile/" + post.creatorUsername);
     },
     async addNewPost() {
       const creatorID = auth.currentUser.uid;
@@ -403,48 +403,42 @@ export default defineComponent({
     deletePost(post) {
       deleteDoc(doc(db, "posts", post.id));
     },
-    toggleLiked(post) {
+    async toggleLiked(post) {
       const creatorID = auth.currentUser.uid;
       this.postID = post.id;
 
-      //check if likes are NaN and fix it
-      if (isNaN(post.likes)) {
-        updateDoc(doc(db, "posts", post.id), { likes: 0 });
-      }
-      if (!post.whoLiked[creatorID]) {
+      if (post.whoLiked === undefined) {
         const updateData = {
-          likes: post.likes + 1,
+          [`whoLiked.${creatorID}`]: true,
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (post.whoLiked[creatorID] === undefined) {
+        const updateData = {
           [`whoLiked.${creatorID}`]: true,
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          likes: Math.max(0, post.likes - 1),
-          [`whoLiked.${creatorID}`]: false,
+          whoLiked: deleteField([`${creatorID}`]),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
+      } else {
+        console.log("Toodaloo");
       }
     },
     async getLiked() {
       const creatorID = auth.currentUser.uid;
 
-      const newQuerySnapshot = await getDocs(collection(db, "posts"));
-      newQuerySnapshot.forEach((post) => {
-        const postData = post.data();
-
-        if (postData.whoLiked[creatorID]) {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: true,
-            likes: postData.likes,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        } else {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: false,
-            likes: postData.likes,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        }
+      const q = query(collection(db, "posts"));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.whoLiked === undefined) {
+            return;
+          } else if (data.whoLiked !== undefined) {
+          }
+          console.log(data.whoLiked);
+        });
       });
     },
     async getDelete(post) {

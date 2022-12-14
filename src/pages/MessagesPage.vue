@@ -243,11 +243,6 @@ export default {
               id,
               value,
             }));
-
-            // this.users = Object.keys(data).map(function (key) {
-            //   return { [data]: data[key] };
-            // });
-            // console.log(toRaw(this.users));
           }
         });
       }
