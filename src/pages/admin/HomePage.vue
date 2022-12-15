@@ -192,7 +192,7 @@
                   color="grey"
                   icon="chat_bubble_outline"
                   size="sm"
-                  :to="'/post/' + post.id"
+                  :to="'/admin/post/' + post.id"
                 />
                 <q-btn flat round color="grey" icon="cached" size="sm" />
                 <q-btn
@@ -404,7 +404,11 @@ export default defineComponent({
       const creatorID = auth.currentUser.uid;
       this.postID = post.id;
 
-      console.log(post.whoLiked.findIndex((o) => o === creatorID));
+      console.log(
+        post.whoLiked.filter((obj) => {
+          return obj[creatorID];
+        })
+      );
       if (post.whoLiked === undefined) {
         const updateData = {
           whoLiked: arrayUnion({
@@ -414,7 +418,11 @@ export default defineComponent({
           }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (!post.whoLiked.includes(creatorID)) {
+      } else if (
+        !post.whoLiked.filter((obj) => {
+          return obj[creatorID];
+        })
+      ) {
         const updateData = {
           whoLiked: arrayUnion({
             [`${creatorID}`]: {
@@ -423,7 +431,11 @@ export default defineComponent({
           }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (post.whoLiked.includes(creatorID)) {
+      } else if (
+        post.whoLiked.filter((obj) => {
+          return obj[creatorID];
+        })
+      ) {
         const updateData = {
           whoLiked: arrayRemove(creatorID),
         };

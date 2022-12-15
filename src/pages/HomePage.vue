@@ -315,9 +315,17 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "grey";
-      } else if (post.whoLiked.includes(myID)) {
+      } else if (
+        post.whoLiked.filter((obj) => {
+          return obj[myID];
+        })
+      ) {
         return "red";
-      } else if (!post.whoLiked.includes(myID)) {
+      } else if (
+        !post.whoLiked.filter((obj) => {
+          return obj[myID];
+        })
+      ) {
         return "grey";
       }
     },
@@ -325,9 +333,17 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "favorite_border";
-      } else if (post.whoLiked.includes(myID)) {
+      } else if (
+        post.whoLiked.filter((obj) => {
+          return obj[myID];
+        })
+      ) {
         return "favorite";
-      } else if (!post.whoLiked.includes(myID)) {
+      } else if (
+        !post.whoLiked.filter((obj) => {
+          return obj[myID];
+        })
+      ) {
         return "favorite_border";
       }
     },
@@ -421,15 +437,31 @@ export default defineComponent({
 
       if (post.whoLiked === undefined) {
         const updateData = {
-          whoLiked: arrayUnion(creatorID),
+          whoLiked: arrayUnion({
+            [`${creatorID}`]: {
+              dateLiked: Date.now(),
+            },
+          }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (!post.whoLiked.includes(creatorID)) {
+      } else if (
+        !post.whoLiked.filter((obj) => {
+          return obj[creatorID];
+        })
+      ) {
         const updateData = {
-          whoLiked: arrayUnion(creatorID),
+          whoLiked: arrayUnion({
+            [`${creatorID}`]: {
+              dateLiked: Date.now(),
+            },
+          }),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (post.whoLiked.includes(creatorID)) {
+      } else if (
+        post.whoLiked.filter((obj) => {
+          return obj[creatorID];
+        })
+      ) {
         const updateData = {
           whoLiked: arrayRemove(creatorID),
         };
