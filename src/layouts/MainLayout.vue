@@ -119,11 +119,19 @@
           <q-item-section class="text-h6">Settings</q-item-section>
         </q-item>
 
-        <div
-          class="separator-container"
-          v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
-        >
+        <div class="separator-container">
           <div class="separator">
+            <q-item to="/feedback" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="feedback"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">Feedback</q-item-section>
+            </q-item>
             <q-item to="/about" clickable v-ripple exact>
               <q-item-section avatar>
                 <q-icon

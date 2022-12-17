@@ -2,10 +2,9 @@
   <q-page>
     <q-scroll-area :visible="false" class="absolute full-width full-height">
       <div class="flexy">
-        <div class="image-upload">
+        <div class="image-upload" :key="$route.fullPath">
           <label for="actual-btn">
             <img
-              :key="$route.fullPath"
               :src="image"
               alt="avatar"
               :class="isYourProfile ? 'avatar' : 'notYourAvatar'"
@@ -153,7 +152,10 @@
                       @click="handleRedirect(post)"
                     >
                       <q-avatar round size="xl">
-                        <q-img v-bind:src="post.creatorImage" /> </q-avatar
+                        <q-img
+                          v-bind:src="post.creatorImage"
+                          class="postavatar"
+                        /> </q-avatar
                     ></label>
 
                     <button id="actual-btn" hidden></button>
@@ -318,7 +320,10 @@
                       @click="handleRedirect(post)"
                     >
                       <q-avatar round size="xl">
-                        <q-img v-bind:src="post.creatorImage" /> </q-avatar
+                        <q-img
+                          v-bind:src="post.creatorImage"
+                          class="postavatar"
+                        /> </q-avatar
                     ></label>
 
                     <button id="actual-btn" hidden></button>
@@ -554,9 +559,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "grey";
-      } else if (post.whoLiked.includes(myID)) {
+      } else if (post.whoLiked[myID]) {
         return "red";
-      } else if (!post.whoLiked.includes(myID)) {
+      } else if (!post.whoLiked[myID]) {
         return "grey";
       }
     },
@@ -564,9 +569,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "favorite_border";
-      } else if (post.whoLiked.includes(myID)) {
+      } else if (post.whoLiked[myID]) {
         return "favorite";
-      } else if (!post.whoLiked.includes(myID)) {
+      } else if (!post.whoLiked[myID]) {
         return "favorite_border";
       }
     },
@@ -604,17 +609,17 @@ export default defineComponent({
 
       if (post.whoLiked === undefined) {
         const updateData = {
-          whoLiked: arrayUnion(creatorID),
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (!post.whoLiked.includes(creatorID)) {
+      } else if (!post.whoLiked[creatorID]) {
         const updateData = {
-          whoLiked: arrayUnion(creatorID),
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (post.whoLiked.includes(creatorID)) {
+      } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          whoLiked: arrayRemove(creatorID),
+          [`whoLiked.${creatorID}`]: deleteField(),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else {
@@ -766,7 +771,7 @@ export default defineComponent({
           const dbReff = dbRef(getDatabase());
           const q = fsQuery(
             collection(db, "posts"),
-            where(`whoLiked`, "array-contains", key)
+            orderBy(`whoLiked.${key}.dateLiked`)
           );
           const unsubscribe = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
@@ -1232,6 +1237,13 @@ export default defineComponent({
     color: grey;
     margin-left: 60px;
   }
+}
+.postavatar {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  cursor: pointer;
+  object-fit: cover;
 }
 .post-content {
   white-space: pre-line;

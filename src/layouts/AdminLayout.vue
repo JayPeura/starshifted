@@ -126,6 +126,17 @@
           v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
         >
           <div class="separator">
+            <q-item to="/admin/feedback" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="feedback"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">Feedback</q-item-section>
+            </q-item>
             <q-item to="/admin/reports" clickable v-ripple exact>
               <q-item-section avatar>
                 <q-icon
@@ -258,9 +269,9 @@
     </q-drawer>
 
     <q-page-container>
-      <router-view :key="$route.fullPath" v-slot="{ Component }">
+      <router-view v-slot="{ Component }">
         <keep-alive
-          ><transition name="fade" mode="out-in">
+          ><transition :key="$route.fullPath" name="fade" mode="out-in">
             <component :is="Component" /> </transition></keep-alive
       ></router-view>
     </q-page-container>

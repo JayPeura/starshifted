@@ -48,6 +48,13 @@ const routes = [
         props: true,
       },
       {
+        path: "feedback",
+        component: () => import("pages/admin/FeedbackPage.vue"),
+        name: "Read feedback",
+        meta: { requiresAuth: true },
+        props: true,
+      },
+      {
         path: "post/:postId",
         component: () => import("pages/admin/PostPage.vue"),
         name: "Admin view: Post",
@@ -129,6 +136,13 @@ const routes = [
         props: true,
       },
       {
+        path: "/feedback",
+        component: () => import("pages/FeedbackPage.vue"),
+        name: "Send feedback",
+        meta: { requiresAuth: true },
+        props: true,
+      },
+      {
         path: "post/:postId",
         component: () => import("pages/PostPage.vue"),
         name: "Post",
@@ -189,8 +203,15 @@ const routes = [
         component: () => import("pages/AboutPage.vue"),
         name: "About",
       },
+    ],
+  },
+  {
+    path: "/login",
+    component: () => import("layouts/LoginLayout.vue"),
+    name: "Login",
+    children: [
       {
-        path: "login",
+        path: "",
         component: () => import("pages/LoginPage.vue"),
         name: "Login",
         props: true,

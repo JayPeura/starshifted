@@ -15,7 +15,7 @@
           >
             <template v-slot:before>
               <q-avatar round size="xl">
-                <q-img v-bind:src="myImage" />
+                <q-img v-bind:src="myImage" class="postavatar" />
               </q-avatar>
             </template>
           </q-input>
@@ -80,7 +80,10 @@
                 @click="handleRedirect(post)"
               >
                 <q-avatar round size="xl">
-                  <q-img v-bind:src="post.creatorImage" /> </q-avatar
+                  <q-img
+                    v-bind:src="post.creatorImage"
+                    class="postavatar"
+                  /> </q-avatar
               ></label>
 
               <button id="actual-btn" hidden></button>
@@ -315,17 +318,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "grey";
-      } else if (
-        post.whoLiked.filter((obj) => {
-          return obj[myID];
-        })
-      ) {
+      } else if (post.whoLiked[myID]) {
         return "red";
-      } else if (
-        !post.whoLiked.filter((obj) => {
-          return obj[myID];
-        })
-      ) {
+      } else if (!post.whoLiked[myID]) {
         return "grey";
       }
     },
@@ -333,17 +328,9 @@ export default defineComponent({
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
         return "favorite_border";
-      } else if (
-        post.whoLiked.filter((obj) => {
-          return obj[myID];
-        })
-      ) {
+      } else if (post.whoLiked[myID]) {
         return "favorite";
-      } else if (
-        !post.whoLiked.filter((obj) => {
-          return obj[myID];
-        })
-      ) {
+      } else if (!post.whoLiked[myID]) {
         return "favorite_border";
       }
     },
@@ -437,33 +424,17 @@ export default defineComponent({
 
       if (post.whoLiked === undefined) {
         const updateData = {
-          whoLiked: arrayUnion({
-            [`${creatorID}`]: {
-              dateLiked: Date.now(),
-            },
-          }),
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (
-        !post.whoLiked.filter((obj) => {
-          return obj[creatorID];
-        })
-      ) {
+      } else if (!post.whoLiked[creatorID]) {
         const updateData = {
-          whoLiked: arrayUnion({
-            [`${creatorID}`]: {
-              dateLiked: Date.now(),
-            },
-          }),
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-      } else if (
-        post.whoLiked.filter((obj) => {
-          return obj[creatorID];
-        })
-      ) {
+      } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          whoLiked: arrayRemove(creatorID),
+          [`whoLiked.${creatorID}`]: deleteField(),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else {
@@ -693,6 +664,13 @@ export default defineComponent({
     color: grey;
     margin-left: 60px;
   }
+}
+.postavatar {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  cursor: pointer;
+  object-fit: cover;
 }
 .post-content {
   white-space: pre-line;
