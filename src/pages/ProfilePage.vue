@@ -200,10 +200,20 @@
                       <img :src="post.postImg" class="postImage" />
                     </q-item-label>
                     <div class="postMenu row justify-between q-mt-sm">
-                      <q-btn flat round icon="more_vert" size="13px">
-                        <q-menu>
+                      <q-btn
+                        flat
+                        round
+                        icon="more_vert"
+                        size="13px"
+                        @click="getFollowed(post)"
+                      >
+                        <q-menu auto-close>
                           <q-list style="min-width: 240px">
-                            <q-item v-if="post.creatorId !== myID" clickable>
+                            <q-item
+                              v-if="post.creatorId !== myID"
+                              clickable
+                              @click="followFromPost(post)"
+                            >
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -215,7 +225,7 @@
                               </q-item-section>
 
                               <q-item-section
-                                >{{ getFollowed(post) }} @{{
+                                >{{ following }} @{{
                                   post.creatorUsername
                                 }}</q-item-section
                               >
@@ -349,10 +359,20 @@
                       <img :src="post.postImg" class="postImage" />
                     </q-item-label>
                     <div class="postMenu row justify-between q-mt-sm">
-                      <q-btn flat round icon="more_vert" size="13px">
-                        <q-menu>
+                      <q-btn
+                        flat
+                        round
+                        icon="more_vert"
+                        size="13px"
+                        @click="getFollowed(post)"
+                      >
+                        <q-menu auto-close>
                           <q-list style="min-width: 240px">
-                            <q-item v-if="post.creatorId !== myID" clickable>
+                            <q-item
+                              v-if="post.creatorId !== myID"
+                              clickable
+                              @click="followFromPost(post)"
+                            >
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -364,12 +384,16 @@
                               </q-item-section>
 
                               <q-item-section
-                                >{{ getFollowed(post) }} @{{
+                                >{{ following }} @{{
                                   post.creatorUsername
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="confirm(post)">
+                            <q-item
+                              clickable
+                              v-if="post.creatorId === myID"
+                              @click="confirm(post)"
+                            >
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -465,6 +489,7 @@ import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import sanitizeHtml from "sanitize-html";
 import { useQuasar } from "quasar";
+import { valueToNode } from "@babel/types";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
@@ -499,6 +524,7 @@ export default defineComponent({
       followingCount: 0,
       followerCount: 0,
       componentKey: 0,
+      following: "Follow",
       followerID: "",
       theyFollowed: false,
       receiverList: false,
@@ -530,6 +556,87 @@ export default defineComponent({
     return { confirm, deletePost };
   },
   methods: {
+    followFromPost(post) {
+      const followerID = auth.currentUser.uid;
+
+      const db2 = getDatabase();
+      const q = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(post.creatorUsername)
+      );
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+
+          this.userID = key;
+          const userFollowRef = dbRef(database, "users/" + key);
+          onValue(
+            userFollowRef,
+            (theirSnapshot) => {
+              const info = theirSnapshot.val();
+
+              const myRef = dbRef(database, "users/" + followerID);
+              onValue(
+                myRef,
+                (mySnapshot) => {
+                  const myInfo = mySnapshot.val();
+                  if (info.followers === undefined) {
+                    this.followerCount = 0;
+                  }
+
+                  if (info.followers === undefined) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${key}`]: true,
+                    });
+                  } else if (!info.followers[followerID]) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${key}`]: true,
+                    });
+                  } else {
+                    this.followed = false;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Follow";
+
+                    update(dbRef(database, "users/" + key), {
+                      [`followers/${followerID}`]: null,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${key}`]: null,
+                    });
+                  }
+                },
+                {
+                  onlyOnce: true,
+                }
+              );
+            },
+            {
+              onlyOnce: true,
+            }
+          );
+        }
+      });
+    },
     async getFollowed(post) {
       const myID = auth.currentUser.uid;
       let vm = this;
@@ -539,17 +646,26 @@ export default defineComponent({
         orderByChild("username"),
         equalTo(post.creatorUsername)
       );
-      const getSnapshot = await get(q2);
-      const data = getSnapshot.val()[post.creatorId];
-      console.log(data);
-      if (data.followers === undefined) return "Follow";
-      if (data.followers[myID]) {
-        return "Unfollow";
-      } else {
-        return "Follow";
-      }
+      const followerRef = dbRef(db2);
+      const getData = await get(child(followerRef, "users/" + myID)).then(
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const followingData = snapshot.val();
+            if (followingData.following === undefined) {
+              this.following = "Follow";
+              return;
+            }
+            if (followingData.following[post.creatorId]) {
+              this.following = "Unfollow";
+              return;
+            } else {
+              this.following = "Follow";
+              return;
+            }
+          }
+        }
+      );
     },
-
     checkColor(post) {
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
@@ -1040,7 +1156,6 @@ export default defineComponent({
       }
     });
 
-    this.getFollows();
     this.getPosts();
     this.getLikedPosts();
   },

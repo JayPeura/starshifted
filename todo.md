@@ -24,3 +24,6 @@
 - [WIP] forgot password to login
 - [WIP] change password & email to settings
 - [WIP] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post
+- [WIP] fix homepage, profilepage and postpage posts' action menu's following button
+- [WIP] add banning system for admins to use
+- [WIP] open pictures as larger versions in a modal/dialog

@@ -42,9 +42,34 @@
               <img :src="post.postImg" class="postImage" />
             </q-item-label>
             <div class="postMenu row justify-between q-mt-sm">
-              <q-btn flat round icon="more_horiz" size="13px">
-                <q-menu>
-                  <q-list style="min-width: 100px">
+              <q-btn
+                flat
+                round
+                icon="more_vert"
+                size="13px"
+                @click="getFollowed(post)"
+              >
+                <q-menu auto-close>
+                  <q-list style="min-width: 240px">
+                    <q-item
+                      v-if="post.creatorId !== myID"
+                      clickable
+                      @click="followFromPost(post)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                          name="person"
+                          size="sm"
+                        />
+                      </q-item-section>
+
+                      <q-item-section
+                        >{{ following }} @{{
+                          post.creatorUsername
+                        }}</q-item-section
+                      >
+                    </q-item>
                     <q-item
                       clickable
                       @click="deletePost(post)"
@@ -200,9 +225,34 @@
                 <img :src="comment.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
-                <q-btn flat round icon="more_horiz" size="13px">
-                  <q-menu>
-                    <q-list style="min-width: 100px">
+                <q-btn
+                  flat
+                  round
+                  icon="more_vert"
+                  size="13px"
+                  @click="getCommentFollowed(comment)"
+                >
+                  <q-menu auto-close>
+                    <q-list style="min-width: 240px">
+                      <q-item
+                        v-if="comment.creatorId !== myID"
+                        clickable
+                        @click="followFromComment(comment)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="person"
+                            size="sm"
+                          />
+                        </q-item-section>
+
+                        <q-item-section
+                          >{{ following }} @{{
+                            comment.creatorUsername
+                          }}</q-item-section
+                        >
+                      </q-item>
                       <q-item
                         clickable
                         @click="deleteComment(comment)"

@@ -37,7 +37,7 @@
             ? 'src/assets/starshiftedWhite.png'
             : 'src/assets/starshifted.png'
         "
-      /><q-badge outline color="accent" align="top" class="adminBadge"
+      /><q-badge outline color="accent" align="top" style="margin-top: 10px"
         >ADMIN</q-badge
       >
 
@@ -470,13 +470,6 @@ a.q-router-link--active {
   display: flex;
   position: absolute;
   margin-left: 75px;
-}
-
-.adminBadge {
-  position: absolute;
-  padding: 10px;
-  right: 100px;
-  top: 15px;
 }
 
 .noLogout {

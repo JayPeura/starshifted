@@ -37,7 +37,9 @@
             ? 'src/assets/starshiftedWhite.png'
             : 'src/assets/starshifted.png'
         "
-      />
+      /><q-badge outline color="blue" align="top" style="margin-top: 10px"
+        >ALPHA</q-badge
+      >
 
       <q-list>
         <q-item to="/" clickable v-ripple exact>
