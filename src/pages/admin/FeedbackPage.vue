@@ -35,8 +35,17 @@
               {{ post.content }}
             </q-item-label>
           </q-item-section>
+          <q-btn
+            round
+            dense
+            flat
+            icon="close"
+            class="showwhenimagebtn"
+            @click="confirm(post)"
+          ></q-btn>
         </q-item>
       </transition-group>
+
       <q-separator
         size="1px"
         :color="$q.dark.isActive ? 'grey-9' : 'grey-4'"
@@ -47,9 +56,18 @@
 </template>
 
 <script>
-import { collection, orderBy, query, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  orderBy,
+  query,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 import db, { auth } from "src/boot/firebase";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
+import { ref } from "vue";
+import { useQuasar } from "quasar";
 
 export default {
   name: "FeedbackPage",
@@ -60,6 +78,23 @@ export default {
       format,
       feedback: [],
     };
+  },
+  setup() {
+    const $q = useQuasar();
+    const confirm = (post) => {
+      $q.dialog({
+        title: "Delete Feedback",
+        message: `Would you like to remove this feedback: ${post.content}?`,
+        cancel: true,
+        persistent: true,
+      }).onOk(() => {
+        removeFeedback(post);
+      });
+    };
+    const removeFeedback = (post) => {
+      deleteDoc(doc(db, "feedback", post.id));
+    };
+    return { confirm, removeFeedback };
   },
   methods: {
     getPosts() {
@@ -96,3 +131,12 @@ export default {
   },
 };
 </script>
+
+<style lang="scss" scoped>
+.showwhenimagebtn {
+  padding: 0;
+  margin: 0;
+  width: 10px;
+  height: 10px;
+}
+</style>

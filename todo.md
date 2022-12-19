@@ -17,3 +17,10 @@
 - [WIP] Topics (hashtags on Twitter)
 - [WIP] Trending topics
 - [WIP] Tagging users
+- [WIP] enable custom colours in feed to personalize it
+- [WIP] show followers list in a scrollable dialog
+- [WIP] show post's liker list in a scrollable dialog when the number of likes is clicked
+- [WIP] show only followings' posts in home page until trending topics have been implemented
+- [WIP] forgot password to login
+- [WIP] change password & email to settings
+- [WIP] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post

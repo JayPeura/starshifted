@@ -218,7 +218,7 @@
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="deletePost(post)">
+                            <q-item clickable @click="confirm(post)">
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -386,7 +386,7 @@
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="deletePost(post)">
+                            <q-item clickable @click="confirm(post)">
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -491,6 +491,7 @@ import {
   getDoc,
   addDoc,
   setDoc,
+  deleteDoc,
   doc,
   updateDoc,
   collection,
@@ -507,6 +508,7 @@ import db, { auth, database, storage } from "../../boot/firebase";
 import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import sanitizeHtml from "sanitize-html";
+import { useQuasar } from "quasar";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
@@ -550,6 +552,23 @@ export default defineComponent({
       showPosts: true,
       showLikedPosts: false,
     };
+  },
+  setup() {
+    const $q = useQuasar();
+    const confirm = (post) => {
+      $q.dialog({
+        title: "Delete post",
+        message: `Are you sure you want to delete this post?`,
+        cancel: true,
+        persistent: true,
+      }).onOk(() => {
+        deletePost(post);
+      });
+    };
+    const deletePost = (post) => {
+      deleteDoc(doc(db, "posts", post.id));
+    };
+    return { confirm, deletePost };
   },
   methods: {
     getFollowed() {
@@ -595,13 +614,6 @@ export default defineComponent({
         },
         allowedIframeHostnames: ["www.youtube.com"],
       });
-    },
-    deletePost(post) {
-      if (auth.currentUser.uid === post.creatorId) {
-        deleteDoc(doc(db, "posts", post.id));
-      } else {
-        return;
-      }
     },
     async toggleLiked(post) {
       const creatorID = auth.currentUser.uid;

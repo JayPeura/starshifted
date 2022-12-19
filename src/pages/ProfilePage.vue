@@ -220,7 +220,7 @@
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="deletePost(post)">
+                            <q-item clickable @click="confirm(post)">
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -238,25 +238,6 @@
                               v-if="post.creatorId !== myID"
                               color="grey-9"
                             />
-                            <q-item
-                              v-if="post.creatorId !== myID"
-                              clickable
-                              outline
-                              @click="banUser(post)"
-                            >
-                              <q-item-section avatar>
-                                <q-icon
-                                  :color="
-                                    $q.dark.isActive ? 'secondary' : 'primary'
-                                  "
-                                  name="gavel"
-                                  class="text-red"
-                                  size="sm"
-                              /></q-item-section>
-                              <q-item-section class="text-red"
-                                >Ban user</q-item-section
-                              >
-                            </q-item>
                           </q-list>
                         </q-menu>
                       </q-btn>
@@ -388,7 +369,7 @@
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="deletePost(post)">
+                            <q-item clickable @click="confirm(post)">
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -483,6 +464,7 @@ import db, { auth, database, storage } from "../boot/firebase";
 import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import sanitizeHtml from "sanitize-html";
+import { useQuasar } from "quasar";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
@@ -526,7 +508,48 @@ export default defineComponent({
       senderList: false,
     };
   },
+  setup() {
+    const $q = useQuasar();
+    const confirm = (post) => {
+      $q.dialog({
+        title: "Delete post",
+        message: `Are you sure you want to delete this post?`,
+        cancel: true,
+        persistent: true,
+      }).onOk(() => {
+        deletePost(post);
+      });
+    };
+    const deletePost = (post) => {
+      if (auth.currentUser.uid === post.creatorId) {
+        deleteDoc(doc(db, "posts", post.id));
+      } else {
+        return;
+      }
+    };
+    return { confirm, deletePost };
+  },
   methods: {
+    async getFollowed(post) {
+      const myID = auth.currentUser.uid;
+      let vm = this;
+      const db2 = getDatabase();
+      const q2 = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(post.creatorUsername)
+      );
+      const getSnapshot = await get(q2);
+      const data = getSnapshot.val()[post.creatorId];
+      console.log(data);
+      if (data.followers === undefined) return "Follow";
+      if (data.followers[myID]) {
+        return "Unfollow";
+      } else {
+        return "Follow";
+      }
+    },
+
     checkColor(post) {
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
@@ -567,13 +590,6 @@ export default defineComponent({
         },
         allowedIframeHostnames: ["www.youtube.com"],
       });
-    },
-    deletePost(post) {
-      if (auth.currentUser.uid === post.creatorId) {
-        deleteDoc(doc(db, "posts", post.id));
-      } else {
-        return;
-      }
     },
     async handleRedirect() {
       const myID = auth.currentUser.uid;
