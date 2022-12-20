@@ -95,7 +95,7 @@
                   post.creatorDisplayname
                 }}</strong>
                 <q-icon
-                  :name="post.isUserVerified ? 'verified' : ''"
+                  :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                   :class="
                     post.isUserVerified
                       ? 'showWhenVerified'

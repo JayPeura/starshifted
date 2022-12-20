@@ -17,7 +17,7 @@
           <span class="gt-sm">{{ $route.name }}</span>
           <img
             class="q-pa-md logo-middle header-icon lt-md"
-            src="../assets/starshifted.png"
+            src="~assets/starshifted.png"
           />
         </q-toolbar-title>
       </q-toolbar>
@@ -31,12 +31,14 @@
       :width="323"
     >
       <img
+        v-if="$q.dark.isActive"
         class="logo-left"
-        :src="
-          $q.dark.isActive
-            ? 'src/assets/starshiftedWhite.png'
-            : 'src/assets/starshifted.png'
-        "
+        src="~assets/starshiftedWhite.png"
+      />
+      <img
+        v-if="!$q.dark.isActive"
+        class="logo-left"
+        src="~assets/starshifted.png"
       /><q-badge outline color="accent" align="top" style="margin-top: 10px"
         >ADMIN</q-badge
       >
@@ -157,7 +159,7 @@
                 />
               </q-item-section>
 
-              <q-item-section class="text-h6">About</q-item-section>
+              <q-item-section class="text-h6">About & Rules</q-item-section>
             </q-item>
             <q-item @click="modeHandler()" clickable v-ripple exact>
               <q-item-section avatar>

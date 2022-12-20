@@ -29,3 +29,9 @@ yarn-error.log*
 *.njsproj
 *.sln
 firebase.js
+starshifted-eba7a-firebase-adminsdk-joa9c-ba22f07534.json
+.firebaserc
+firebase.json
+.firebase
+.github
+.vscode

@@ -6,6 +6,7 @@
 - [DONE] move login to its own layout and route
 - [DONE] have avatars center their content
 - [DONE] Feedback page that sends the messages to the database and render them in admin page
+- [DONE] change verification badge to something astrological (now moon & stars)
 
 # WIP ITEMS
 

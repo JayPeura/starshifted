@@ -25,7 +25,7 @@
         <h5 class="names">
           <strong>{{ profileName }}</strong>
           <q-icon
-            :name="isUserVerified ? 'verified' : ''"
+            :name="isUserVerified ? 'bi-moon-stars-fill' : ''"
             :class="isUserVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
           />
           {{ " " }}
@@ -173,7 +173,7 @@
                         >{{ post.creatorDisplayname }}</strong
                       >
                       <q-icon
-                        :name="post.isUserVerified ? 'verified' : ''"
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                         :class="
                           post.isUserVerified
                             ? 'showWhenVerified'
@@ -332,7 +332,7 @@
                         >{{ post.creatorDisplayname }}</strong
                       >
                       <q-icon
-                        :name="post.isUserVerified ? 'verified' : ''"
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                         :class="
                           post.isUserVerified
                             ? 'showWhenVerified'
@@ -489,7 +489,6 @@ import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import sanitizeHtml from "sanitize-html";
 import { useQuasar } from "quasar";
-import { valueToNode } from "@babel/types";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
@@ -1215,7 +1214,7 @@ export default defineComponent({
   margin-top: -2.5px;
 }
 .names {
-  margin: 40px 0 0 50px;
+  margin: 40px 0 0 30px;
 }
 .fields {
   margin-left: 30px;
@@ -1249,12 +1248,13 @@ export default defineComponent({
   right: 30px;
   top: 35px;
 }
+
 .messageDark {
   display: flex;
   position: absolute;
   color: $secondary;
   background-color: $grey-10;
-  right: 150px;
+  right: 125px;
   top: 35px;
 }
 .messageLight {
@@ -1274,13 +1274,10 @@ export default defineComponent({
 }
 .avatar {
   margin: 15px;
-  margin-left: 40px;
+  margin-left: 20px;
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border-width: 1px;
-  border-color: black;
-  border-style: outset;
   display: flex;
   cursor: pointer;
   object-fit: cover;
@@ -1289,11 +1286,8 @@ export default defineComponent({
   margin: 15px;
   width: 80px;
   height: 80px;
-  margin-left: 40px;
+  margin-left: 20px;
   border-radius: 50%;
-  border-width: 1px;
-  border-color: black;
-  border-style: outset;
   display: flex;
   object-fit: cover;
 }
@@ -1311,5 +1305,97 @@ export default defineComponent({
   white-space: pre-line;
   margin: 30px;
   margin-top: 0;
+}
+@media screen and (min-width: 1000px) and (max-width: 1170px) {
+  .messageDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 45px;
+  }
+  .messageLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 10px;
+    top: 45px;
+  }
+  .editProfileDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 5px;
+  }
+  .editProfileLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 15px;
+    top: 5px;
+  }
+}
+
+@media screen and (min-width: 280px) and (max-width: 530px) {
+  .messageDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 45px;
+  }
+  .messageLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 10px;
+    top: 45px;
+  }
+  .editProfileDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 5px;
+  }
+  .editProfileLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 15px;
+    top: 5px;
+  }
+
+  .names {
+    margin: 35px 0 0 25px;
+    font-size: 18px;
+  }
+
+  .avatar {
+    margin: 15px;
+    margin-left: 20px;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    cursor: pointer;
+    object-fit: cover;
+  }
+  .notYourAvatar {
+    margin: 15px;
+    width: 70px;
+    height: 70px;
+    margin-left: 20px;
+    display: flex;
+    object-fit: cover;
+  }
 }
 </style>

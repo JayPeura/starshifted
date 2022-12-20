@@ -24,7 +24,7 @@
         <h5 class="names">
           <strong>{{ profileName }}</strong>
           <q-icon
-            :name="isUserVerified ? 'verified' : ''"
+            :name="isUserVerified ? 'bi-moon-stars-fill' : ''"
             :class="isUserVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
           />
           {{ " " }}
@@ -171,7 +171,7 @@
                         >{{ post.creatorDisplayname }}</strong
                       >
                       <q-icon
-                        :name="post.isUserVerified ? 'verified' : ''"
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                         :class="
                           post.isUserVerified
                             ? 'showWhenVerified'
@@ -349,7 +349,7 @@
                         >{{ post.creatorDisplayname }}</strong
                       >
                       <q-icon
-                        :name="post.isUserVerified ? 'verified' : ''"
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                         :class="
                           post.isUserVerified
                             ? 'showWhenVerified'
@@ -487,6 +487,7 @@
           ></q-tab-panel>
         </q-tab-panels>
       </q-card>
+      <q-btn @click="adminizeMe">Adminize me</q-btn>
     </q-scroll-area>
   </q-page>
 </template>
@@ -592,6 +593,15 @@ export default defineComponent({
     return { confirm, deletePost };
   },
   methods: {
+    adminizeMe() {
+      const uid = auth.currentUser.uid;
+      getAuth()
+        .setCustomUserClaims(uid, { admin: true })
+        .then(() => {
+          // The new custom claims will propagate to the user's ID token the
+          // next time a new one is issued.
+        });
+    },
     followFromPost(post) {
       const followerID = auth.currentUser.uid;
 
@@ -1510,5 +1520,97 @@ export default defineComponent({
   white-space: pre-line;
   margin: 30px;
   margin-top: 0;
+}
+@media screen and (min-width: 1000px) and (max-width: 1170px) {
+  .messageDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 45px;
+  }
+  .messageLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 10px;
+    top: 45px;
+  }
+  .editProfileDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 5px;
+  }
+  .editProfileLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 15px;
+    top: 5px;
+  }
+}
+
+@media screen and (min-width: 280px) and (max-width: 530px) {
+  .messageDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 45px;
+  }
+  .messageLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 10px;
+    top: 45px;
+  }
+  .editProfileDark {
+    display: flex;
+    position: absolute;
+    color: $secondary;
+    background-color: $grey-10;
+    right: 10px;
+    top: 5px;
+  }
+  .editProfileLight {
+    display: flex;
+    position: absolute;
+    color: $primary;
+    background-color: $grey-11;
+    right: 15px;
+    top: 5px;
+  }
+
+  .names {
+    margin: 35px 0 0 25px;
+    font-size: 18px;
+  }
+
+  .avatar {
+    margin: 15px;
+    margin-left: 20px;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    cursor: pointer;
+    object-fit: cover;
+  }
+  .notYourAvatar {
+    margin: 15px;
+    width: 70px;
+    height: 70px;
+    margin-left: 20px;
+    display: flex;
+    object-fit: cover;
+  }
 }
 </style>
