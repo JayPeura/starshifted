@@ -487,7 +487,6 @@
           ></q-tab-panel>
         </q-tab-panels>
       </q-card>
-      <q-btn @click="adminizeMe">Adminize me</q-btn>
     </q-scroll-area>
   </q-page>
 </template>
@@ -593,15 +592,6 @@ export default defineComponent({
     return { confirm, deletePost };
   },
   methods: {
-    adminizeMe() {
-      const uid = auth.currentUser.uid;
-      getAuth()
-        .setCustomUserClaims(uid, { admin: true })
-        .then(() => {
-          // The new custom claims will propagate to the user's ID token the
-          // next time a new one is issued.
-        });
-    },
     followFromPost(post) {
       const followerID = auth.currentUser.uid;
 
