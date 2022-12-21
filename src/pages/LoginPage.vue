@@ -294,7 +294,10 @@ export default {
                 .then(() => {
                   // Data saved successfully!
                   alert("User created successfully!");
-
+                  this.username = "";
+                  this.displayname = "";
+                  this.password = "";
+                  this.repassword = "";
                   this.switchTypeForm();
                 })
                 .catch((error) => {

@@ -66,7 +66,7 @@
         :color="$q.dark.isActive ? 'grey-10' : 'grey-4'"
         :class="$q.dark.isActive ? 'dividerDark' : 'dividerLight'"
       />
-      <q-list separator>
+      <q-list :key="$route.fullPath" separator>
         <transition-group
           appear
           enter-active-class="animated fadeIn slow"
@@ -269,6 +269,7 @@ import {
   orderByChild,
   equalTo,
   onValue,
+  update,
 } from "firebase/database";
 import { defineComponent, ref, toRaw, nextTick } from "vue";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
@@ -323,19 +324,11 @@ export default defineComponent({
       const followerID = auth.currentUser.uid;
 
       const db2 = getDatabase();
-      const q = query(
-        dbRef(db2, "users"),
-        orderByChild("username"),
-        equalTo(post.creatorUsername)
-      );
+      const q = dbRef(db2, "users/" + post.creatorId);
       get(q).then((snapshot) => {
         if (snapshot.exists()) {
-          const key = Object.keys(snapshot.val())[0];
-
-          this.userID = key;
-          const userFollowRef = dbRef(database, "users/" + key);
           onValue(
-            userFollowRef,
+            q,
             (theirSnapshot) => {
               const info = theirSnapshot.val();
 
@@ -353,12 +346,12 @@ export default defineComponent({
                     this.followerCount = theirSnapshot.child("followers").size;
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Unfollow";
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: true,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: true,
+                      [`following/${post.creatorId}`]: true,
                     });
                   } else if (!info.followers[followerID]) {
                     this.followed = true;
@@ -366,12 +359,12 @@ export default defineComponent({
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Unfollow";
 
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: true,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: true,
+                      [`following/${post.creatorId}`]: true,
                     });
                   } else {
                     this.followed = false;
@@ -379,12 +372,12 @@ export default defineComponent({
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Follow";
 
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: null,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: null,
+                      [`following/${post.creatorId}`]: null,
                     });
                   }
                 },
@@ -403,11 +396,6 @@ export default defineComponent({
     async getFollowed(post) {
       const myID = auth.currentUser.uid;
       const db2 = getDatabase();
-      const q2 = query(
-        dbRef(db2, "users"),
-        orderByChild("username"),
-        equalTo(post.creatorUsername)
-      );
       const followerRef = dbRef(db2);
       const getData = await get(child(followerRef, "users/" + myID)).then(
         (snapshot) => {

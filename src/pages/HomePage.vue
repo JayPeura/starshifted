@@ -172,26 +172,11 @@
                           >Delete post</q-item-section
                         ></q-item
                       >
+
                       <q-item
                         v-if="post.creatorId !== myID"
                         clickable
-                        @click="reportUser(post)"
-                      >
-                        <q-item-section avatar>
-                          <q-icon
-                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                            name="dangerous"
-                            class="text-red"
-                            size="sm"
-                        /></q-item-section>
-                        <q-item-section class="text-red"
-                          >Report user</q-item-section
-                        ></q-item
-                      >
-                      <q-item
-                        v-if="post.creatorId !== myID"
-                        clickable
-                        @click="reportPost(post)"
+                        @click="confirmReport(post)"
                       >
                         <q-item-section avatar>
                           <q-icon
@@ -285,6 +270,7 @@ import { formatDistance, formatDistanceStrict, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 import sanitizeHtml from "sanitize-html";
+import { useQuasar } from "quasar";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -326,24 +312,42 @@ export default defineComponent({
       isLiked: false,
     };
   },
+  setup() {
+    const $q = useQuasar();
+    const confirmReport = (post) => {
+      $q.dialog({
+        title: "Report post",
+        message: `Post content: "${post.content}"`,
+        prompt: {
+          model: "",
+          isValid: (val) => val.length > 2,
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        addDoc(collection(db, "reports"), {
+          postContent: post.content,
+          posterUsername: post.creatorUsername,
+          posterID: post.creatorId,
+          postID: post.id,
+          reportContent: data,
+        });
+      });
+    };
+
+    return { confirmReport };
+  },
   methods: {
     followFromPost(post) {
       const followerID = auth.currentUser.uid;
 
       const db2 = getDatabase();
-      const q = query(
-        dbRef(db2, "users"),
-        orderByChild("username"),
-        equalTo(post.creatorUsername)
-      );
+      const q = dbRef(db2, "users/" + post.creatorId);
       get(q).then((snapshot) => {
         if (snapshot.exists()) {
-          const key = Object.keys(snapshot.val())[0];
-
-          this.userID = key;
-          const userFollowRef = dbRef(database, "users/" + key);
           onValue(
-            userFollowRef,
+            q,
             (theirSnapshot) => {
               const info = theirSnapshot.val();
 
@@ -361,12 +365,12 @@ export default defineComponent({
                     this.followerCount = theirSnapshot.child("followers").size;
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Unfollow";
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: true,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: true,
+                      [`following/${post.creatorId}`]: true,
                     });
                   } else if (!info.followers[followerID]) {
                     this.followed = true;
@@ -374,12 +378,12 @@ export default defineComponent({
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Unfollow";
 
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: true,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: true,
+                      [`following/${post.creatorId}`]: true,
                     });
                   } else {
                     this.followed = false;
@@ -387,12 +391,12 @@ export default defineComponent({
                     this.followingCount = theirSnapshot.child("following").size;
                     this.following = "Follow";
 
-                    update(dbRef(database, "users/" + key), {
+                    update(dbRef(database, "users/" + post.creatorId), {
                       [`followers/${followerID}`]: null,
                     });
 
                     update(dbRef(database, "users/" + followerID), {
-                      [`following/${key}`]: null,
+                      [`following/${post.creatorId}`]: null,
                     });
                   }
                 },

@@ -390,6 +390,24 @@
                               >
                             </q-item>
                             <q-item
+                              v-if="post.creatorId !== myID"
+                              clickable
+                              @click="confirmReport(post)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="warning"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Report post</q-item-section
+                              ></q-item
+                            >
+                            <q-item
                               clickable
                               v-if="post.creatorId === myID"
                               @click="confirm(post)"
@@ -421,7 +439,7 @@
                         color="grey"
                         icon="chat_bubble_outline"
                         size="sm"
-                        :to="'/admin/post/' + post.id"
+                        :to="'/post/' + post.id"
                       />
                       <q-btn flat round color="grey" icon="cached" size="sm" />
                       <q-btn
@@ -535,6 +553,29 @@ export default defineComponent({
   },
   setup() {
     const $q = useQuasar();
+
+    const confirmReport = (post) => {
+      $q.dialog({
+        title: "Report post",
+        message: `Post content: "${post.content}"`,
+        prompt: {
+          model: "",
+          isValid: (val) => val.length > 2,
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        addDoc(collection(db, "reports"), {
+          postContent: post.content,
+          posterUsername: post.creatorUsername,
+          posterID: post.creatorId,
+          postID: post.id,
+          reportContent: data,
+        });
+      });
+    };
+
     const confirm = (post) => {
       $q.dialog({
         title: "Delete post",
@@ -552,7 +593,7 @@ export default defineComponent({
         return;
       }
     };
-    return { confirm, deletePost };
+    return { confirm, deletePost, confirmReport };
   },
   methods: {
     followFromPost(post) {

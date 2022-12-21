@@ -9,6 +9,7 @@
                 <q-img
                   v-bind:src="post.creatorImage"
                   for="actual-btn"
+                  class="postavatar"
                 /> </q-avatar
             ></label>
 
@@ -21,7 +22,7 @@
                 post.creatorDisplayname
               }}</strong>
               <q-icon
-                :name="post.isUserVerified ? 'verified' : ''"
+                :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
                 :class="
                   post.isUserVerified
                     ? 'showWhenVerified'
@@ -34,11 +35,15 @@
                 <br class="lt-md" />
               </span>
               <span class="text-grey-7">
-                {{ formatDistance(post.date, new Date()) }}</span
+                {{
+                  post.date > Date.now() - 35 * 60 * 60 * 1000
+                    ? formatDistanceStrict(post.date, new Date())
+                    : format(post.date, "d MMM")
+                }}</span
               >
             </q-item-label>
             <q-item-label class="post-content text-body1">
-              {{ post.content }}
+              <span v-html="linkifyText(post)"></span>
               <img :src="post.postImg" class="postImage" />
             </q-item-label>
             <div class="postMenu row justify-between q-mt-sm">
@@ -71,11 +76,36 @@
                       >
                     </q-item>
                     <q-item
+                      v-if="post.creatorId !== myID"
                       clickable
-                      @click="deletePost(post)"
-                      v-if="post.creatorId === myID"
+                      @click="confirmReport(post)"
                     >
-                      <q-item-section>Delete post</q-item-section>
+                      <q-item-section avatar>
+                        <q-icon
+                          :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                          name="warning"
+                          class="text-red"
+                          size="sm"
+                      /></q-item-section>
+                      <q-item-section class="text-red"
+                        >Report post</q-item-section
+                      ></q-item
+                    >
+                    <q-item
+                      clickable
+                      v-if="post.creatorId === myID"
+                      @click="confirm(post)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                          name="delete"
+                          class="text-red"
+                          size="sm"
+                      /></q-item-section>
+                      <q-item-section class="text-red"
+                        >Delete post</q-item-section
+                      >
                     </q-item>
                   </q-list>
                 </q-menu>
@@ -93,16 +123,18 @@
               <q-btn
                 flat
                 round
-                @click="togglePostLiked(post)"
-                :color="post.whoLiked[myID] ? 'red' : 'grey'"
-                :icon="post.whoLiked[myID] ? 'favorite' : 'favorite_border'"
+                @click="toggleLiked(post)"
+                :color="checkColor(post)"
+                :icon="checkIcon(post)"
                 size="sm"
               >
                 <span class="postLikes">
                   {{
-                    new Intl.NumberFormat("en-GB", {
-                      notation: "compact",
-                    }).format(post.likes)
+                    post.whoLiked !== undefined
+                      ? new Intl.NumberFormat("en-GB", {
+                          notation: "compact",
+                        }).format(Object.keys(post.whoLiked).length)
+                      : 0
                   }}
                 </span></q-btn
               >
@@ -135,7 +167,7 @@
           >
             <template v-slot:before>
               <q-avatar round size="xl">
-                <q-img v-bind:src="myImage" />
+                <q-img v-bind:src="myImage" class="postavatar" />
               </q-avatar>
             </template>
           </q-input>
@@ -200,7 +232,7 @@
           >
             <q-item-section avatar top>
               <q-avatar round size="xl">
-                <q-img v-bind:src="comment.creatorImage" />
+                <q-img v-bind:src="comment.creatorImage" class="postavatar" />
               </q-avatar>
             </q-item-section>
 
@@ -208,7 +240,7 @@
               <q-item-label class="text-subtitle1"
                 ><strong>{{ comment.creatorDisplayname }}</strong>
                 <q-icon
-                  :name="comment.isUserVerified ? 'verified' : ''"
+                  :name="comment.isUserVerified ? 'bi-moon-stars-fill' : ''"
                   :class="
                     comment.isUserVerified
                       ? 'showWhenVerified'
@@ -217,11 +249,15 @@
                 />
                 <span class="text-grey-7">
                   @{{ comment.creatorUsername }} &bull; <br class="lt-md" />
-                  {{ formatDistance(comment.date, new Date()) }}
+                  {{
+                    comment.date > Date.now() - 35 * 60 * 60 * 1000
+                      ? formatDistanceStrict(comment.date, new Date())
+                      : format(comment.date, "d MMM")
+                  }}
                 </span>
               </q-item-label>
               <q-item-label class="post-content text-body1">
-                {{ comment.content }}
+                <span v-html="linkifyText(comment)"></span>
                 <img :src="comment.postImg" class="postImage" />
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
@@ -230,7 +266,7 @@
                   round
                   icon="more_vert"
                   size="13px"
-                  @click="getCommentFollowed(comment)"
+                  @click="getFollowed(comment)"
                 >
                   <q-menu auto-close>
                     <q-list style="min-width: 240px">
@@ -254,11 +290,36 @@
                         >
                       </q-item>
                       <q-item
+                        v-if="comment.creatorId !== myID"
                         clickable
-                        @click="deleteComment(comment)"
-                        v-if="comment.creatorId === myID"
+                        @click="confirmReport(comment)"
                       >
-                        <q-item-section>Delete post</q-item-section>
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="warning"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Report post</q-item-section
+                        ></q-item
+                      >
+                      <q-item
+                        clickable
+                        v-if="comment.creatorId === myID"
+                        @click="confirm(comment)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="delete"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Delete post</q-item-section
+                        >
                       </q-item>
                     </q-list>
                   </q-menu>
@@ -277,17 +338,17 @@
                   flat
                   round
                   @click="toggleLiked(comment)"
-                  :color="comment.whoLiked[myID] ? 'red' : 'grey'"
-                  :icon="
-                    comment.whoLiked[myID] ? 'favorite' : 'favorite_border'
-                  "
+                  :color="checkColor(comment)"
+                  :icon="checkIcon(comment)"
                   size="sm"
                 >
                   <span class="postLikes">
                     {{
-                      new Intl.NumberFormat("en-GB", {
-                        notation: "compact",
-                      }).format(comment.likes)
+                      comment.whoLiked !== undefined
+                        ? new Intl.NumberFormat("en-GB", {
+                            notation: "compact",
+                          }).format(Object.keys(comment.whoLiked).length)
+                        : 0
                     }}
                   </span></q-btn
                 >
@@ -318,9 +379,6 @@ import {
   doc,
   updateDoc,
   getDocs,
-  where,
-  arrayUnion,
-  arrayRemove,
   getDoc,
 } from "firebase/firestore";
 import db, { auth, storage, database } from "src/boot/firebase";
@@ -331,15 +389,12 @@ import {
   child,
   onValue,
 } from "firebase/database";
-import { defineComponent, ref, toRaw } from "vue";
-import { formatDistance } from "date-fns";
+import { defineComponent, ref } from "vue";
+import { formatDistanceStrict, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  getDownloadURL,
-  ref as stRef,
-  uploadBytesResumable,
-  uploadBytes,
-} from "firebase/storage";
+import { ref as stRef, uploadBytes } from "firebase/storage";
+import sanitizeHtml from "sanitize-html";
+import { useQuasar } from "quasar";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -359,7 +414,8 @@ export default defineComponent({
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       defaultImage:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
-      formatDistance,
+      formatDistanceStrict,
+      format,
       comments: [],
       postImage: "",
       myComments: [],
@@ -367,6 +423,7 @@ export default defineComponent({
       userVerified: false,
       postLikes: 0,
       creatorID: "",
+      following: "Follow",
       imageShow: false,
       imageButtonShow: false,
       imageUrl: imageUrlRef,
@@ -381,7 +438,170 @@ export default defineComponent({
       isHidden: false,
     };
   },
+  setup() {
+    const $q = useQuasar();
+    const confirmReport = (post) => {
+      $q.dialog({
+        title: "Report post",
+        message: `Post content: "${post.content}"`,
+        prompt: {
+          model: "",
+          isValid: (val) => val.length > 2,
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        addDoc(collection(db, "reports"), {
+          postContent: post.content,
+          posterUsername: post.creatorUsername,
+          posterID: post.creatorId,
+          postID: post.id,
+          reportContent: data,
+        });
+      });
+    };
+
+    return { confirmReport };
+  },
   methods: {
+    followFromPost(post) {
+      const followerID = auth.currentUser.uid;
+
+      const db2 = getDatabase();
+      const q = dbRef(db2, "users/" + post.creatorId);
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          onValue(
+            q,
+            (theirSnapshot) => {
+              const info = theirSnapshot.val();
+
+              const myRef = dbRef(database, "users/" + followerID);
+              onValue(
+                myRef,
+                (mySnapshot) => {
+                  const myInfo = mySnapshot.val();
+                  if (info.followers === undefined) {
+                    this.followerCount = 0;
+                  }
+
+                  if (info.followers === undefined) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: true,
+                    });
+                  } else if (!info.followers[followerID]) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: true,
+                    });
+                  } else {
+                    this.followed = false;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Follow";
+
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: null,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: null,
+                    });
+                  }
+                },
+                {
+                  onlyOnce: true,
+                }
+              );
+            },
+            {
+              onlyOnce: true,
+            }
+          );
+        }
+      });
+    },
+    async getFollowed(post) {
+      const myID = auth.currentUser.uid;
+      const db2 = getDatabase();
+      const followerRef = dbRef(db2);
+      const getData = await get(child(followerRef, "users/" + myID)).then(
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const followingData = snapshot.val();
+            if (followingData.following === undefined) {
+              this.following = "Follow";
+              return;
+            }
+            if (followingData.following[post.creatorId]) {
+              this.following = "Unfollow";
+              return;
+            } else {
+              this.following = "Follow";
+              return;
+            }
+          }
+        }
+      );
+    },
+    checkColor(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "grey";
+      } else if (post.whoLiked[myID]) {
+        return "red";
+      } else if (!post.whoLiked[myID]) {
+        return "grey";
+      }
+    },
+    checkIcon(post) {
+      const myID = auth.currentUser.uid;
+      if (post.whoLiked === undefined) {
+        return "favorite_border";
+      } else if (post.whoLiked[myID]) {
+        return "favorite";
+      } else if (!post.whoLiked[myID]) {
+        return "favorite_border";
+      }
+    },
+    linkifyText(post) {
+      const pattern1 =
+        /(\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/gim;
+      let text = post.content.replace(
+        pattern1,
+        '<a href="$1" target="_blank">$1</a>'
+      );
+
+      const pattern2 = /(^|[^\/])(www\.[\S]+(\b|$))/gim;
+      text = text.replace(
+        pattern2,
+        '$1<a href="http://$2" target="_blank">$2</a>'
+      );
+      return sanitizeHtml(text, {
+        allowedTags: ["b", "i", "em", "strong", "a"],
+        allowedAttributes: {
+          a: ["href"],
+        },
+        allowedIframeHostnames: ["www.youtube.com"],
+      });
+    },
     cancelFileUpload() {
       this.image = null;
       this.imageUrl = "";
@@ -398,24 +618,19 @@ export default defineComponent({
     },
     async addNewPost() {
       const creatorID = auth.currentUser.uid;
-      let newPost = {
+      const newPost = {
         content: this.newStarshiftingPost,
         date: Date.now(),
-        liked: false,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
         creatorImage: this.myImage,
         creatorId: creatorID,
-        whoLiked: {
-          [`${creatorID}`]: false,
-        },
         postImg: this.imageUrl,
         isUserVerified: this.userVerified,
         creatorUsername: this.currUsername,
         creatorDisplayname: this.currName,
         creatorImage: this.myImage,
         commentImg: this.creatorImage,
-        likes: 0,
       };
       // this.posts.unshift(newPost);
       if ((this.postID = window.location.href.split("post/")[1])) {
@@ -456,124 +671,51 @@ export default defineComponent({
         return;
       }
     },
-    toggleLiked(comment) {
+    async toggleLiked(post) {
       const creatorID = auth.currentUser.uid;
+      this.postID = post.id;
 
-      //check if likes are NaN and fix it
-      if (isNaN(comment.likes)) {
-        updateDoc(doc(db, `posts/${this.postID}/comments`, comment.id), {
-          likes: 0,
-        });
-      }
-
-      if (!comment.whoLiked[creatorID]) {
+      if (post.whoLiked === undefined) {
         const updateData = {
-          likes: comment.likes + 1,
-          [`whoLiked.${creatorID}`]: true,
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
-        updateDoc(
-          doc(db, `posts/${this.postID}/comments`, comment.id),
-          updateData
-        );
-      } else {
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (!post.whoLiked[creatorID]) {
         const updateData = {
-          likes: Math.max(0, comment.likes - 1),
-          [`whoLiked.${creatorID}`]: false,
-        };
-        updateDoc(
-          doc(db, `posts/${this.postID}/comments`, comment.id),
-          updateData
-        );
-        this.likerID = "";
-      }
-    },
-    togglePostLiked(post) {
-      const creatorID = auth.currentUser.uid;
-      console.log(post);
-      //check if likes are NaN and fix it
-      if (isNaN(post.likes)) {
-        updateDoc(doc(db, "posts", post.id), { likes: 0 });
-      }
-      if (!post.whoLiked[creatorID]) {
-        const updateData = {
-          likes: post.likes + 1,
-          [`whoLiked.${creatorID}`]: true,
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
-          likes: Math.max(0, post.likes - 1),
-          [`whoLiked.${creatorID}`]: false,
+          [`whoLiked.${creatorID}`]: deleteField(),
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
-        this.likerID = "";
+      } else {
+        console.log("Toodaloo");
       }
     },
-    async getPostLiked() {
+    async togglePostLiked(post) {
       const creatorID = auth.currentUser.uid;
-      const newQuerySnapshot = await getDocs(collection(db, `posts/`));
-      newQuerySnapshot.forEach((post) => {
-        const postData = post.data();
+      this.postID = post.id;
 
-        if (postData.whoLiked[creatorID]) {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: true,
-            likes: postData.likes,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        } else {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: false,
-            likes: postData.likes,
-          };
-          updateDoc(doc(db, "posts/", post.id), updateData);
-        }
-      });
-    },
-    async getLiked() {
-      const creatorID = auth.currentUser.uid;
-      const newQuerySnapshot = await getDocs(
-        collection(db, `posts/${this.postID}/comments`)
-      );
-      newQuerySnapshot.forEach((post) => {
-        const postData = post.data();
-
-        if (postData.whoLiked === undefined) {
-          console.log("whoLiked undefined, updating");
-          const updateData = {
-            [`whoLiked.${creatorID}`]: false,
-          };
-          updateDoc(
-            doc(db, "posts/" + this.postID + "/comments", post.id),
-            updateData
-          );
-        }
-
-        if (isNaN(post.likes)) {
-          updateDoc(doc(db, "posts/" + this.postID + "/comments", post.id), {
-            likes: 0,
-          });
-        }
-        if (postData.whoLiked[creatorID]) {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: true,
-            likes: postData.likes,
-          };
-          updateDoc(
-            doc(db, "posts/" + this.postID + "/comments", post.id),
-            updateData
-          );
-        } else {
-          const updateData = {
-            [`whoLiked.${creatorID}`]: false,
-            likes: postData.likes,
-          };
-          updateDoc(
-            doc(db, "posts/" + this.postID + "/comments", post.id),
-            updateData
-          );
-        }
-      });
+      if (post.whoLiked === undefined) {
+        const updateData = {
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (!post.whoLiked[creatorID]) {
+        const updateData = {
+          [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else if (post.whoLiked[creatorID]) {
+        const updateData = {
+          [`whoLiked.${creatorID}`]: deleteField(),
+        };
+        updateDoc(doc(db, "posts/", post.id), updateData);
+      } else {
+        console.log("Toodaloo");
+      }
     },
   },
   async mounted() {
@@ -623,7 +765,7 @@ export default defineComponent({
             this.commentLikes = commentChange.likes;
             this.commentLiked = commentChange.isLiked;
             this.commentID = commentChange.id;
-            this.isVerified = commentChange.isUserVerified;
+            this.userVerified = commentChange.isUserVerified;
             this.myComments.unshift(commentChange.id);
             this.comments.unshift(commentChange);
             if (commentChange.creatorId === this.creatorID) {
@@ -715,8 +857,6 @@ export default defineComponent({
         }
       });
     });
-    this.getLiked();
-    this.getPostLiked();
 
     const docRef = doc(db, "posts", this.postID);
     const docSnap = await getDoc(docRef);
@@ -726,29 +866,25 @@ export default defineComponent({
       this.posterUsername = docSnapData.creatorUsername;
     }
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const userId = auth.currentUser.uid;
-        const dbReff = dbRef(getDatabase());
-        get(child(dbReff, `users/${userId}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.currUsername = snapshot.val().username;
-              this.currName = snapshot.val().displayName;
-              this.myImage = snapshot.val().image;
-              this.userVerified = snapshot.val().verified;
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
-          });
-        if (this.myID === this.creatorID) {
-          this.isHidden = true;
+    const myID = auth.currentUser.uid;
+
+    const dbReff = dbRef(getDatabase());
+    get(child(dbReff, `users/${myID}`))
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          this.myImage = snapshot.val().image;
+          if (snapshot.val().verified === undefined) {
+            this.userVerified = false;
+          } else {
+            this.userVerified = snapshot.val().verified;
+          }
+        } else {
+          console.log("No data available");
         }
-      }
-    });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
   },
 });
 </script>
@@ -760,7 +896,13 @@ export default defineComponent({
     line-height: 1.4 !important;
   }
 }
-
+.postavatar {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  cursor: pointer;
+  object-fit: cover;
+}
 .hidewhenimage {
   width: 0;
   height: 0;
