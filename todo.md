@@ -7,10 +7,12 @@
 - [DONE] have avatars center their content
 - [DONE] Feedback page that sends the messages to the database and render them in admin page
 - [DONE] change verification badge to something astrological (now moon & stars)
+- [DONE] admin panel modifications
+- [DONE] add banning system for admins to use
+- [DONE] fix homepage, profilepage and postpage posts' action menu's following button
 
 # WIP ITEMS
 
-- [WIP] admin panel modifications
 - [WIP] nsfw filter toggle -> blur on pics
 - [WIP] image upload in private messages
 - [WIP] deleted people's posts should be deleted completely instead of the (deleted)
@@ -23,8 +25,6 @@
 - [WIP] show post's liker list in a scrollable dialog when the number of likes is clicked
 - [WIP] show only followings' posts in home page until trending topics have been implemented
 - [WIP] forgot password to login
-- [WIP] change password & email to settings
+- [WIP] change password & email in settings
 - [WIP] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post
-- [WIP] fix homepage, profilepage and postpage posts' action menu's following button
-- [WIP] add banning system for admins to use
 - [WIP] open pictures as larger versions in a modal/dialog

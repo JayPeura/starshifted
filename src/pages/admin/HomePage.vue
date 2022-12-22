@@ -276,6 +276,7 @@ import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 import sanitizeHtml from "sanitize-html";
+import { useQuasar } from "quasar";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -318,6 +319,33 @@ export default defineComponent({
       isHidden: false,
       isLiked: false,
     };
+  },
+  setup() {
+    const $q = useQuasar();
+
+    const banUser = (post) => {
+      $q.dialog({
+        title: "Ban user",
+        message: `Do you want to ban user @${post.creatorUsername} from Starshifted?`,
+        prompt: {
+          model: "",
+          placeholder: "Ban reasoning",
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        console.log("Banned user!");
+        update(dbRef(database, "users/" + post.creatorId), {
+          status: {
+            banned: true,
+            banReasoning: data,
+          },
+        });
+      });
+    };
+
+    return { banUser };
   },
   methods: {
     followFromPost(post) {

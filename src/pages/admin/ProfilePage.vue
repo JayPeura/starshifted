@@ -576,6 +576,27 @@ export default defineComponent({
   },
   setup() {
     const $q = useQuasar();
+    const banUser = (post) => {
+      $q.dialog({
+        title: "Ban user",
+        message: `Do you want to ban user @${post.creatorUsername} from Starshifted?`,
+        prompt: {
+          model: "",
+          placeholder: "Ban reasoning",
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        console.log("Banned user!");
+        update(dbRef(database, "users/" + post.creatorId), {
+          status: {
+            banned: true,
+            banReasoning: data,
+          },
+        });
+      });
+    };
     const confirm = (post) => {
       $q.dialog({
         title: "Delete post",
@@ -589,7 +610,7 @@ export default defineComponent({
     const deletePost = (post) => {
       deleteDoc(doc(db, "posts", post.id));
     };
-    return { confirm, deletePost };
+    return { confirm, deletePost, banUser };
   },
   methods: {
     followFromPost(post) {

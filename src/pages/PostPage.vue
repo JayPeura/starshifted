@@ -94,7 +94,7 @@
                     <q-item
                       clickable
                       v-if="post.creatorId === myID"
-                      @click="confirm(post)"
+                      @click="confirmPost(post)"
                     >
                       <q-item-section avatar>
                         <q-icon
@@ -123,7 +123,7 @@
               <q-btn
                 flat
                 round
-                @click="toggleLiked(post)"
+                @click="togglePostLiked(post)"
                 :color="checkColor(post)"
                 :icon="checkIcon(post)"
                 size="sm"
@@ -308,7 +308,7 @@
                       <q-item
                         clickable
                         v-if="comment.creatorId === myID"
-                        @click="confirm(comment)"
+                        @click="confirmComment(comment)"
                       >
                         <q-item-section avatar>
                           <q-icon
@@ -380,6 +380,7 @@ import {
   updateDoc,
   getDocs,
   getDoc,
+  deleteField,
 } from "firebase/firestore";
 import db, { auth, storage, database } from "src/boot/firebase";
 import {
@@ -388,6 +389,7 @@ import {
   getDatabase,
   child,
   onValue,
+  update,
 } from "firebase/database";
 import { defineComponent, ref } from "vue";
 import { formatDistanceStrict, format } from "date-fns";
@@ -440,6 +442,7 @@ export default defineComponent({
   },
   setup() {
     const $q = useQuasar();
+    const postID = window.location.href.split("post/")[1];
     const confirmReport = (post) => {
       $q.dialog({
         title: "Report post",
@@ -461,8 +464,47 @@ export default defineComponent({
         });
       });
     };
-
-    return { confirmReport };
+    const confirmPost = (post) => {
+      $q.dialog({
+        title: "Delete post",
+        message: `Are you sure you want to delete this post?`,
+        cancel: true,
+        persistent: true,
+      }).onOk(() => {
+        deletePost(post);
+      });
+    };
+    const confirmComment = (comment) => {
+      $q.dialog({
+        title: "Delete post",
+        message: `Are you sure you want to delete this post?`,
+        cancel: true,
+        persistent: true,
+      }).onOk(() => {
+        deleteComment(comment);
+      });
+    };
+    const deletePost = (post) => {
+      if (auth.currentUser.uid === post.creatorId) {
+        deleteDoc(doc(db, "posts", post.id));
+      } else {
+        return;
+      }
+    };
+    const deleteComment = (comment) => {
+      if (auth.currentUser.uid === comment.creatorId) {
+        deleteDoc(doc(db, `posts/${postID}/comments/`, comment.id));
+      } else {
+        return;
+      }
+    };
+    return {
+      confirmPost,
+      confirmComment,
+      deletePost,
+      deleteComment,
+      confirmReport,
+    };
   },
   methods: {
     followFromPost(post) {
@@ -656,47 +698,39 @@ export default defineComponent({
         this.newStarshiftingPost = "";
       }
     },
-    deletePost(post) {
-      if (auth.currentUser.uid === post.creatorId) {
-        deleteDoc(doc(db, `posts/${post.id}`));
-        this.postDeleted = true;
-      } else {
-        return;
-      }
-    },
-    deleteComment(comment) {
-      if (auth.currentUser.uid === comment.creatorId) {
-        deleteDoc(doc(db, `posts/${this.postID}/comments`, comment.id));
-      } else {
-        return;
-      }
-    },
     async toggleLiked(post) {
       const creatorID = auth.currentUser.uid;
-      this.postID = post.id;
 
       if (post.whoLiked === undefined) {
         const updateData = {
           [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
-        updateDoc(doc(db, "posts/", post.id), updateData);
+        updateDoc(
+          doc(db, "posts/" + this.postID + "/comments/", post.id),
+          updateData
+        );
       } else if (!post.whoLiked[creatorID]) {
         const updateData = {
           [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
-        updateDoc(doc(db, "posts/", post.id), updateData);
+        updateDoc(
+          doc(db, "posts/" + this.postID + "/comments/", post.id),
+          updateData
+        );
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
           [`whoLiked.${creatorID}`]: deleteField(),
         };
-        updateDoc(doc(db, "posts/", post.id), updateData);
+        updateDoc(
+          doc(db, "posts/" + this.postID + "/comments/", post.id),
+          updateData
+        );
       } else {
         console.log("Toodaloo");
       }
     },
     async togglePostLiked(post) {
       const creatorID = auth.currentUser.uid;
-      this.postID = post.id;
 
       if (post.whoLiked === undefined) {
         const updateData = {
@@ -765,7 +799,11 @@ export default defineComponent({
             this.commentLikes = commentChange.likes;
             this.commentLiked = commentChange.isLiked;
             this.commentID = commentChange.id;
-            this.userVerified = commentChange.isUserVerified;
+            if (commentChange.isUserVerified === undefined) {
+              this.userVerified = false;
+            } else {
+              this.userVerified = commentChange.isUserVerified;
+            }
             this.myComments.unshift(commentChange.id);
             this.comments.unshift(commentChange);
             if (commentChange.creatorId === this.creatorID) {
@@ -784,6 +822,11 @@ export default defineComponent({
                   this.userVerified = data.verified;
                   this.currUsername = data.username;
                   this.currName = data.displayName;
+                  if (data.verified === undefined) {
+                    this.userVerified = false;
+                  } else if (data.verified !== undefined) {
+                    this.userVerified = data.verified;
+                  }
 
                   const replaceInfo = doc(
                     db,

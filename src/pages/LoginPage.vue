@@ -289,6 +289,7 @@ export default {
                 username: this.$refs.username.modelValue,
                 email: this.$refs.email.modelValue,
                 displayName: this.$refs.displayname.modelValue,
+                status: { banned: false, banReasoning: "" },
                 image: this.image,
               })
                 .then(() => {
