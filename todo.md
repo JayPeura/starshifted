@@ -10,6 +10,8 @@
 - [DONE] admin panel modifications
 - [DONE] add banning system for admins to use
 - [DONE] fix homepage, profilepage and postpage posts' action menu's following button
+- [DONE] ban appeal system
+- [DONE] route to banned page only if banned
 
 # WIP ITEMS
 
@@ -28,3 +30,4 @@
 - [WIP] change password & email in settings
 - [WIP] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post
 - [WIP] open pictures as larger versions in a modal/dialog
+- [WIP] add a visual indication for public on one's profile about their ongoing ban
