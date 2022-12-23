@@ -639,12 +639,6 @@ export default defineComponent({
                         isHidden: false,
                       };
                       updateDoc(replaceInfo, newInfo);
-                    } else if (!this.creatorID === myID) {
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        isHidden: true,
-                      };
-                      updateDoc(replaceInfo, newInfo);
                     }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {

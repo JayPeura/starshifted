@@ -54,7 +54,33 @@ export default route(function (/* { store, ssrContext } */) {
       );
     });
   };
+  const banned = () => {
+    return new Promise((resolve, reject) => {
+      let bannedPeople = [];
+      const bannedUsers = query(
+        dbRef(database, "users"),
+        orderByChild("status/banned"),
+        equalTo(true)
+      );
 
+      onValue(
+        bannedUsers,
+        (snapshot) => {
+          snapshot.forEach((childSnapshot) => {
+            let data = childSnapshot.val();
+            data.id = childSnapshot.key;
+            bannedPeople.push(data);
+            resolve(bannedPeople);
+            // ...
+          });
+        },
+        reject,
+        {
+          onlyOnce: true,
+        }
+      );
+    });
+  };
   const admin = () => {
     return new Promise((resolve, reject) => {
       let admins = [];
@@ -87,19 +113,33 @@ export default route(function (/* { store, ssrContext } */) {
     const requiresAdmin = to.matched.some(
       (record) => record.meta.requiresAdmin
     );
+    const requiresBanned = to.matched.some(
+      (record) => record.meta.requiresBanned
+    );
     const adminData = await admin();
+    const bannedData = await banned();
+    const bannedChecker = bannedData.map((banned) => banned.id);
     const adminIDchecker = adminData.map((admin) => admin.id);
     const data = await user();
     if (requiresAuth && !data) {
       next("Login");
     } else if (
-      requiresAdmin &&
-      adminData.admin === undefined &&
-      !adminIDchecker.includes(auth.currentUser.uid)
+      (requiresAdmin || requiresBanned) &&
+      !adminIDchecker.includes(auth.currentUser.uid) &&
+      !bannedChecker.includes(auth.currentUser.uid)
     ) {
       next("/");
-    } else if (data && adminIDchecker.includes(auth.currentUser.uid)) {
-      next();
+    } else if (
+      requiresBanned &&
+      adminIDchecker.includes(auth.currentUser.uid) &&
+      !bannedChecker.includes(auth.currentUser.uid)
+    ) {
+      next("/admin");
+    } else if (
+      (requiresAdmin || requiresAuth) &&
+      bannedChecker.includes(auth.currentUser.uid)
+    ) {
+      next("/banned");
     } else {
       next();
     }

@@ -223,6 +223,26 @@ const routes = [
       },
     ],
   },
+  {
+    path: "/banned",
+    component: () => import("layouts/BannedLayout.vue"),
+    name: "Banned",
+    meta: { requiresBanned: true },
+    children: [
+      {
+        path: "",
+        component: () => import("pages/banned/BannedPage.vue"),
+        name: "You are banned",
+        props: true,
+      },
+      {
+        path: "unbanRequest",
+        component: () => import("pages/banned/RequestUnbanPage.vue"),
+        name: "Request Unban",
+        props: true,
+      },
+    ],
+  },
 
   // Always leave this as last one,
   // but you can also remove it
