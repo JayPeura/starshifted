@@ -102,12 +102,13 @@
       </div>
       <div :class="!isYourProfile ? 'showIfNotYours' : 'hideIfYours'">
         <q-btn
-          label="Message"
+          icon="mail"
+          round
           :class="$q.dark.isActive ? 'messageDark' : 'messageLight'"
           @click="handleRedirect"
         />
         <q-btn
-          :label="checkFollowed()"
+          :label="following"
           :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
           @click="toggleFollow"
         />
@@ -1085,21 +1086,49 @@ export default defineComponent({
     pickFile() {
       this.$refs.fileInput.click();
     },
-    checkFollowed() {
-      if (!this.followed && !this.theyFollowed) {
-        return "Follow";
-      } else if (this.followed && !this.theyFollowed) {
-        return "Unfollow";
-      } else if (this.followed && this.theyFollowed) {
-        return "Unfollow";
-      } else if (!this.followed && this.theyFollowed) {
-        return "Follow back";
-      }
+    async checkFollowed() {
+      const username = window.location.href.split("profile/")[1];
+      const myID = auth.currentUser.uid;
+      const db2 = getDatabase();
+      const q2 = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
+      );
+      const followerRef = dbRef(db2);
+      const getData = await get(child(followerRef, "users/" + myID)).then(
+        (snapshot) => {
+          if (snapshot.exists()) {
+            let followingData = snapshot.val();
+            onValue(q2, (follow) => {
+              follow.forEach((childFollow) => {
+                let followData = childFollow.val();
+                followData.id = childFollow.key;
+                if (followingData.following === undefined) {
+                  this.following = "Follow";
+                  return;
+                }
+                if (followData.following === undefined) {
+                  this.following = "Follow";
+                  return;
+                }
+                if (followingData.following[followData.id]) {
+                  this.following = "Unfollow";
+                  return;
+                } else {
+                  this.following = "Follow";
+                  return;
+                }
+              });
+            });
+          }
+        }
+      );
     },
     toggleFollow() {
       const followerID = auth.currentUser.uid;
 
-      const username = window.location.href.split("admin/profile/")[1];
+      const username = window.location.href.split("profile/")[1];
 
       const db2 = getDatabase();
       const q = query(
@@ -1128,7 +1157,7 @@ export default defineComponent({
                   }
 
                   if (info.followers === undefined) {
-                    this.followed = true;
+                    this.followed = !this.followed;
                     this.followerCount = theirSnapshot.child("followers").size;
                     this.followingCount = theirSnapshot.child("following").size;
 
@@ -1139,8 +1168,10 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: true,
                     });
+                    this.checkFollowed();
+                    this.getFollows();
                   } else if (!info.followers[followerID]) {
-                    this.followed = true;
+                    this.followed = !this.followed;
                     this.followerCount = theirSnapshot.child("followers").size;
                     this.followingCount = theirSnapshot.child("following").size;
 
@@ -1151,8 +1182,10 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: true,
                     });
+                    this.checkFollowed();
+                    this.getFollows();
                   } else {
-                    this.followed = false;
+                    this.followed = !this.followed;
                     this.followerCount = theirSnapshot.child("followers").size;
                     this.followingCount = theirSnapshot.child("following").size;
 
@@ -1163,6 +1196,8 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: null,
                     });
+                    this.checkFollowed();
+                    this.getFollows();
                   }
                 },
                 {
@@ -1196,8 +1231,8 @@ export default defineComponent({
           const userFollowRef = dbRef(database, "users/" + key);
           onValue(userFollowRef, (snapshot1) => {
             const info = snapshot1.val();
-            this.followerCount = snapshot.child("followers").size;
-            this.followingCount = snapshot.child("following").size;
+            this.followerCount = snapshot1.child("followers").size;
+            this.followingCount = snapshot1.child("following").size;
 
             const myRef = dbRef(database, "users/" + followerID);
             onValue(
@@ -1210,23 +1245,23 @@ export default defineComponent({
 
                 if (myInfo.following === undefined) {
                   this.followed = false;
-                } else if (info.followers === undefined) {
+                } else if (info.following === undefined) {
                   this.theyFollowed = false;
                 } else if (
                   myInfo.following[key] &&
-                  info.followers[followerID]
+                  info.following[followerID]
                 ) {
                   this.followed = true;
                   this.theyFollowed = true;
                 } else if (
                   !myInfo.following[key] &&
-                  info.followers[followerID]
+                  info.following[followerID]
                 ) {
                   this.followed = false;
                   this.theyFollowed = true;
                 } else if (
                   myInfo.following[key] &&
-                  !info.followers[followerID]
+                  !info.following[followerID]
                 ) {
                   this.followed = true;
                   this.theyFollowed = false;
@@ -1375,9 +1410,9 @@ export default defineComponent({
           });
       }
     });
-    this.getFollows();
     this.getPosts();
     this.getLikedPosts();
+    this.checkFollowed();
   },
 });
 </script>
@@ -1442,59 +1477,55 @@ export default defineComponent({
   margin-top: -2.5px;
 }
 .names {
-  margin: 40px 0 0 50px;
+  margin: 50px 0 0 50px;
 }
 .fields {
   margin-left: 30px;
   font-size: 12px;
 }
 .showIfNotYours {
-  display: block;
+  display: flex;
+  height: 0;
+  position: absolute;
+  align-items: center;
+  right: 7px;
+  top: 27px;
 }
 .hideIfYours {
   display: none;
 }
 .showIfYours {
-  display: block;
+  display: flex;
+  height: 0;
+  position: absolute;
+  align-items: center;
+  right: 7px;
+  top: 27px;
 }
 .hideIfNotYours {
   display: none;
 }
 .editProfileDark {
-  display: flex;
-  position: absolute;
   color: $secondary;
   background-color: $grey-10;
-  right: 30px;
-  top: 35px;
 }
 .editProfileLight {
-  display: flex;
-  position: absolute;
   color: $primary;
   background-color: $grey-11;
-  right: 30px;
-  top: 35px;
 }
 .messageDark {
-  display: flex;
-  position: absolute;
   color: $secondary;
   background-color: $grey-10;
-  right: 150px;
-  top: 35px;
+  margin-right: 5px;
 }
 .messageLight {
-  display: flex;
-  position: absolute;
   color: $primary;
   background-color: $grey-11;
-  right: 150px;
-  top: 35px;
 }
 .avatar {
   margin: 15px;
   margin-left: 40px;
+  margin-top: 20px;
   width: 80px;
   height: 80px;
   border-radius: 50%;
@@ -1508,6 +1539,7 @@ export default defineComponent({
 .notYourAvatar {
   margin: 15px;
   width: 80px;
+  margin-top: 20px;
   height: 80px;
   margin-left: 40px;
   border-radius: 50%;
@@ -1531,97 +1563,5 @@ export default defineComponent({
   white-space: pre-line;
   margin: 30px;
   margin-top: 0;
-}
-@media screen and (min-width: 1000px) and (max-width: 1170px) {
-  .messageDark {
-    display: flex;
-    position: absolute;
-    color: $secondary;
-    background-color: $grey-10;
-    right: 10px;
-    top: 45px;
-  }
-  .messageLight {
-    display: flex;
-    position: absolute;
-    color: $primary;
-    background-color: $grey-11;
-    right: 10px;
-    top: 45px;
-  }
-  .editProfileDark {
-    display: flex;
-    position: absolute;
-    color: $secondary;
-    background-color: $grey-10;
-    right: 10px;
-    top: 5px;
-  }
-  .editProfileLight {
-    display: flex;
-    position: absolute;
-    color: $primary;
-    background-color: $grey-11;
-    right: 15px;
-    top: 5px;
-  }
-}
-
-@media screen and (min-width: 280px) and (max-width: 530px) {
-  .messageDark {
-    display: flex;
-    position: absolute;
-    color: $secondary;
-    background-color: $grey-10;
-    right: 10px;
-    top: 45px;
-  }
-  .messageLight {
-    display: flex;
-    position: absolute;
-    color: $primary;
-    background-color: $grey-11;
-    right: 10px;
-    top: 45px;
-  }
-  .editProfileDark {
-    display: flex;
-    position: absolute;
-    color: $secondary;
-    background-color: $grey-10;
-    right: 10px;
-    top: 5px;
-  }
-  .editProfileLight {
-    display: flex;
-    position: absolute;
-    color: $primary;
-    background-color: $grey-11;
-    right: 15px;
-    top: 5px;
-  }
-
-  .names {
-    margin: 35px 0 0 25px;
-    font-size: 18px;
-  }
-
-  .avatar {
-    margin: 15px;
-    margin-left: 20px;
-    width: 70px;
-    height: 70px;
-    display: flex;
-    cursor: pointer;
-    object-fit: cover;
-  }
-  .notYourAvatar {
-    margin: 15px;
-    width: 70px;
-    height: 70px;
-    margin-left: 20px;
-    display: flex;
-    object-fit: cover;
-  }
 }
 </style>
