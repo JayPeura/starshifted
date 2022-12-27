@@ -1,123 +1,130 @@
 <template>
   <q-page>
     <q-scroll-area :visible="false" class="absolute full-width full-height">
-      <div class="flexy">
-        <div class="image-upload">
-          <label for="actual-btn">
-            <q-img
-              :key="$route.fullPath"
-              :src="image"
-              alt="avatar"
-              :class="isYourProfile ? 'avatar' : 'notYourAvatar'"
-              for="actual-btn"
-          /></label>
+      <div class="userInfo" v-for="user in users" :key="user.id">
+        <div class="flexy">
+          <div class="image-upload">
+            <label for="actual-btn">
+              <q-img
+                :key="$route.fullPath"
+                :src="user.image"
+                alt="avatar"
+                :class="user.id === myID ? 'avatar' : 'notYourAvatar'"
+                for="actual-btn"
+            /></label>
 
-          <input
-            type="file"
-            ref="fileInput"
-            :id="isYourProfile ? 'actual-btn' : ''"
-            @change="onFilePicked"
-            accept=".jpg, .png, .jpeg"
-            hidden
-          />
+            <input
+              type="file"
+              ref="fileInput"
+              :id="user.id === myID ? 'actual-btn' : ''"
+              @change="onFilePicked"
+              accept=".jpg, .png, .jpeg"
+              hidden
+            />
+          </div>
+
+          <h5 class="names">
+            <strong>{{ user.displayName }}</strong>
+            <q-icon
+              :name="
+                user.verified !== undefined && user.verified
+                  ? 'bi-moon-stars-fill'
+                  : ''
+              "
+              :class="
+                user.verified !== undefined && user.verified
+                  ? 'showWhenVerified'
+                  : 'hideWhenNotVerified'
+              "
+            />
+            {{ " " }}
+            <span class="username">@{{ user.username }}</span>
+          </h5>
         </div>
+        <q-item-section>
+          <q-item-label class="rounded-borders bio-content text-body1">
+            <span>{{ user.bio }}</span>
+          </q-item-label>
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>
+            <span style="margin-right: 25px; margin-left: 20px"
+              >{{ followingCount }}
+              <span style="margin-left: 5px; color: grey">Following</span></span
+            >
 
-        <h5 class="names">
-          <strong>{{ profileName }}</strong>
-          <q-icon
-            :name="isUserVerified ? 'bi-moon-stars-fill' : ''"
-            :class="isUserVerified ? 'showWhenVerified' : 'hideWhenNotVerified'"
-          />
-          {{ " " }}
-          <span class="username">@{{ currUsername }}</span>
-        </h5>
-      </div>
-      <q-item-section>
-        <q-item-label class="rounded-borders bio-content text-body1">
-          <span>{{ bio }}</span>
-        </q-item-label>
-      </q-item-section>
-      <q-item-section>
-        <q-item-label>
-          <span style="margin-right: 25px; margin-left: 20px"
-            >{{ followingCount }}
-            <span style="margin-left: 5px; color: grey">Following</span></span
-          >
-
-          <span
-            >{{ followerCount }}
-            <span style="margin-left: 5px; color: grey">Followers</span></span
-          >
-        </q-item-label>
-      </q-item-section>
-      <div :class="isYourProfile ? 'showIfYours' : 'hideIfNotYours'">
-        <q-btn
-          label="Edit profile"
-          :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
-          @click="prompt = true"
-        />
-
-        <q-dialog v-model="prompt" persistent>
-          <q-card style="min-width: 350px; min-height: 300px">
-            <q-card-section>
-              <div class="text-h6">Edit profile</div>
-            </q-card-section>
-
-            <q-card-section class="q-pt-none">
-              <q-input
-                square
-                outlined
-                v-model="newName"
-                placeholder="Display name"
-                autofocus
-              />
-              <br />
-              <q-input
-                square
-                outlined
-                placeholder="Bio"
-                v-model="newBio"
-                counter
-                maxlength="160"
-                autofocus
-              />
-            </q-card-section>
-
-            <q-card-actions align="right" class="text-primary">
-              <q-btn
-                flat
-                label="Cancel"
-                v-close-popup
-                :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              />
-              <q-btn
-                flat
-                label="Done"
-                @click="editProfile"
-                v-close-popup
-                :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
-      </div>
-      <div :class="!isYourProfile ? 'showIfNotYours' : 'hideIfYours'">
-        <q-btn
-          icon="mail"
-          round
-          :class="$q.dark.isActive ? 'messageDark' : 'messageLight'"
-          @click="handleRedirect"
-        />
-        <div @click="checkFollowed()">
+            <span
+              >{{ followerCount }}
+              <span style="margin-left: 5px; color: grey">Followers</span></span
+            >
+          </q-item-label>
+        </q-item-section>
+        <div :class="user.id === myID ? 'showIfYours' : 'hideIfNotYours'">
           <q-btn
-            :label="followLabel()"
+            label="Edit profile"
+            :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
+            @click="prompt = true"
+          />
+
+          <q-dialog v-model="prompt" persistent>
+            <q-card style="min-width: 350px; min-height: 300px">
+              <q-card-section>
+                <div class="text-h6">Edit profile</div>
+              </q-card-section>
+
+              <q-card-section class="q-pt-none">
+                <q-input
+                  square
+                  outlined
+                  v-model="newName"
+                  placeholder="Display name"
+                  autofocus
+                />
+                <br />
+                <q-input
+                  square
+                  outlined
+                  placeholder="Bio"
+                  v-model="newBio"
+                  counter
+                  maxlength="160"
+                  autofocus
+                />
+              </q-card-section>
+
+              <q-card-actions align="right" class="text-primary">
+                <q-btn
+                  flat
+                  label="Cancel"
+                  v-close-popup
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                />
+                <q-btn
+                  flat
+                  label="Done"
+                  @click="editProfile"
+                  v-close-popup
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
+        </div>
+        <div :class="user.id !== myID ? 'showIfNotYours' : 'hideIfYours'">
+          <q-btn
+            icon="mail"
+            round
+            :class="$q.dark.isActive ? 'messageDark' : 'messageLight'"
+            @click="handleRedirect"
+          />
+          <q-btn
+            :label="followLabel(user)"
             :key="componentKey"
             :class="$q.dark.isActive ? 'editProfileDark' : 'editProfileLight'"
             @click="toggleFollow"
           />
         </div>
       </div>
-
       <q-separator class="q-mt-xl q-mb-sm q-py-xs" color="grey-10" />
 
       <q-card>
@@ -540,14 +547,15 @@ export default defineComponent({
       imageURL: "",
       prompt: prompt,
       merged: [],
+      users: [],
       isYourProfile: false,
       followed: false,
       followingCount: 0,
       followerCount: 0,
       componentKey: 0,
       following: "Follow",
-      myData: {},
-      theirData: {},
+      myData: "",
+      theirData: "",
       followerID: "",
       theyFollowed: false,
       receiverList: false,
@@ -929,54 +937,25 @@ export default defineComponent({
         }
       });
     },
-    followLabel() {
-      this.$nextTick(() => {
-        let me = toRaw(this.myData);
-        let them = toRaw(this.theirData);
-        console.log(me);
-        console.log(them);
+    followLabel(user) {
+      if (user.following === undefined) {
+        return "Follow";
+      }
+      if (user.followers === undefined) {
+        return "Follow";
+      }
 
-        if (me.following === undefined) {
-          return;
-        }
-        if (them.followers === undefined) {
-          return;
-        }
-
-        if (this.myData.following[this.theirData.id]) {
-          return "Unfollow";
-        } else if (this.myData.followers[this.theirData.id]) {
-          return "Follow back";
-        } else if (this.myData.following[this.theirData.id] === undefined) {
-          return "Follow";
-        } else if (this.myData.followers[this.theirData.id] === undefined) {
-          return "Follow";
-        }
-      });
-    },
-    async checkFollowed() {
-      const username = window.location.href.split("profile/")[1];
-      const myID = auth.currentUser.uid;
-      const db2 = getDatabase();
-      const q2 = query(
-        dbRef(db2, "users"),
-        orderByChild("username"),
-        equalTo(username)
-      );
-      const followerRef = dbRef(db2);
-      const getData = await get(child(followerRef, "users/" + myID));
-
-      let myData = getData.val();
-      myData.id = getData.key;
-
-      const moreValues = await get(q2);
-      let theirData = moreValues.val();
-      const key = Object.keys(moreValues.val());
-      theirData = theirData[key];
-      theirData.id = key[0];
-
-      this.theirData = theirData;
-      this.myData = myData;
+      if (user.following[this.myID] && !user.followers[this.myID]) {
+        return "Follow back";
+      } else if (user.followers[this.myID]) {
+        return "Unfollow";
+      } else if (user.following[this.myID] === undefined) {
+        return "Follow";
+      } else if (user.followers[this.myID] === undefined) {
+        return "Follow";
+      } else {
+        return "Follow";
+      }
     },
     toggleFollow() {
       const followerID = auth.currentUser.uid;
@@ -1021,7 +1000,6 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: true,
                     });
-                    this.checkFollowed();
                     this.getFollows();
                   } else if (!info.followers[followerID]) {
                     this.followed = !this.followed;
@@ -1035,7 +1013,6 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: true,
                     });
-                    this.checkFollowed();
                     this.getFollows();
                   } else {
                     this.followed = !this.followed;
@@ -1049,7 +1026,6 @@ export default defineComponent({
                     update(dbRef(database, "users/" + followerID), {
                       [`following/${key}`]: null,
                     });
-                    this.checkFollowed();
                     this.getFollows();
                   }
                 },
@@ -1234,24 +1210,28 @@ export default defineComponent({
           this.myImage = info.image;
         });
         get(child(dbReff, `users/${key}`))
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              this.currUsername = snapshot.val().username;
-              this.profileName = snapshot.val().displayName;
-              this.image = snapshot.val().image;
-              if (snapshot.val().verified !== undefined) {
-                this.isUserVerified = snapshot.val().verified;
+          .then((snapshotUser) => {
+            if (snapshotUser.exists()) {
+              let theUser = snapshotUser.val();
+              theUser.id = snapshotUser.key;
+              this.users.push(theUser);
+
+              this.currUsername = snapshotUser.val().username;
+              this.profileName = snapshotUser.val().displayName;
+              this.image = snapshotUser.val().image;
+              if (snapshotUser.val().verified !== undefined) {
+                this.isUserVerified = snapshotUser.val().verified;
               } else {
                 this.isUserVerified = false;
               }
-              this.bio = snapshot.val().bio;
-              if (snapshot.child("followers").size > 0) {
-                this.followerCount = snapshot.child("followers").size;
+              this.bio = snapshotUser.val().bio;
+              if (snapshotUser.child("followers").size > 0) {
+                this.followerCount = snapshotUser.child("followers").size;
               } else {
                 this.followerCount = 0;
               }
-              if (snapshot.child("following").size > 0) {
-                this.followingCount = snapshot.child("following").size;
+              if (snapshotUser.child("following").size > 0) {
+                this.followingCount = snapshotUser.child("following").size;
               } else {
                 this.followingCount = 0;
               }
@@ -1271,7 +1251,6 @@ export default defineComponent({
 
     this.getPosts();
     this.getLikedPosts();
-    this.checkFollowed();
   },
 });
 </script>
