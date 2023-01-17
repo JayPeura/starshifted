@@ -123,7 +123,19 @@
               </q-item-label>
               <q-item-label class="post-content text-body1">
                 <span v-html="linkifyText(post)"></span>
-                <img :src="post.postImg" class="postImage" />
+                <img
+                  @click="
+                    imageShower = true;
+                    openImage = post.postImg;
+                  "
+                  :src="post.postImg"
+                  class="postImage"
+                />
+                <q-dialog v-model="imageShower">
+                  <q-card>
+                    <img :src="openImage" />
+                  </q-card>
+                </q-dialog>
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
                 <q-btn
@@ -331,6 +343,8 @@ export default defineComponent({
       isHidden: false,
       isLiked: false,
       admin: false,
+      imageShower: false,
+      openImage: "",
     };
   },
   setup() {
@@ -527,8 +541,12 @@ export default defineComponent({
       this.$refs.files.pickFiles();
     },
     async onFilePicked(e) {
-      this.imageUrl = URL.createObjectURL(this.image);
-      this.imageShow = true;
+      const reader = new FileReader();
+      reader.readAsDataURL(this.image);
+      reader.onload = () => {
+        this.imageUrl = reader.result;
+        this.imageShow = true;
+      };
     },
     handleRedirect(post) {
       this.$router.push("/profile/" + post.creatorUsername);
@@ -546,7 +564,6 @@ export default defineComponent({
         creatorId: creatorID,
         postImg: this.imageUrl,
       };
-      // this.posts.unshift(newPost);
       addDoc(collection(db, "posts"), newPost);
       if (this.image !== null) {
         let uidDate = new Date().getTime();
@@ -561,7 +578,7 @@ export default defineComponent({
           "images/posts/" + currentUser.uid + uidDate
         );
 
-        const uploadTask = await uploadBytes(fileRef, this.image, metadata);
+        await uploadBytes(fileRef, this.image, metadata);
       }
       this.imageShow = false;
       this.imageUrl = "";
@@ -866,7 +883,7 @@ export default defineComponent({
   width: auto;
   height: auto;
   max-width: 100%;
-  max-height: 500px;
+  max-height: 300px;
   margin-bottom: 15px;
   padding-right: 35px;
   margin-top: 10px;
