@@ -76,25 +76,9 @@
                       >
                     </q-item>
                     <q-item
-                      v-if="post.creatorId !== myID"
+                      v-if="post.creatorId === myID || admin"
                       clickable
-                      @click="confirmReport(post)"
-                    >
-                      <q-item-section avatar>
-                        <q-icon
-                          :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                          name="warning"
-                          class="text-red"
-                          size="sm"
-                      /></q-item-section>
-                      <q-item-section class="text-red"
-                        >Report post</q-item-section
-                      ></q-item
-                    >
-                    <q-item
-                      clickable
-                      v-if="post.creatorId === myID"
-                      @click="confirmPost(post)"
+                      @click="deletePost(post)"
                     >
                       <q-item-section avatar>
                         <q-icon
@@ -106,6 +90,25 @@
                       <q-item-section class="text-red"
                         >Delete post</q-item-section
                       >
+                    </q-item>
+                    <q-separator
+                      v-if="post.creatorId !== myID && admin"
+                      color="grey-9"
+                    />
+                    <q-item
+                      v-if="post.creatorId !== myID && admin"
+                      clickable
+                      outline
+                      @click="banUser(post)"
+                    >
+                      <q-item-section avatar>
+                        <q-icon
+                          :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                          name="gavel"
+                          class="text-red"
+                          size="sm"
+                      /></q-item-section>
+                      <q-item-section class="text-red">Ban user</q-item-section>
                     </q-item>
                   </q-list>
                 </q-menu>
@@ -162,7 +165,7 @@
             placeholder="Comment"
             autogrow
             counter
-            maxlength="280"
+            maxlength="680"
             class="new-post"
           >
             <template v-slot:before>
@@ -290,24 +293,8 @@
                         >
                       </q-item>
                       <q-item
-                        v-if="comment.creatorId !== myID"
+                        v-if="myID === comment.creatorId || admin"
                         clickable
-                        @click="confirmReport(comment)"
-                      >
-                        <q-item-section avatar>
-                          <q-icon
-                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                            name="warning"
-                            class="text-red"
-                            size="sm"
-                        /></q-item-section>
-                        <q-item-section class="text-red"
-                          >Report post</q-item-section
-                        ></q-item
-                      >
-                      <q-item
-                        clickable
-                        v-if="comment.creatorId === myID"
                         @click="confirmComment(comment)"
                       >
                         <q-item-section avatar>
@@ -319,6 +306,27 @@
                         /></q-item-section>
                         <q-item-section class="text-red"
                           >Delete post</q-item-section
+                        >
+                      </q-item>
+                      <q-separator
+                        v-if="comment.creatorId !== myID && admin"
+                        color="grey-9"
+                      />
+                      <q-item
+                        v-if="comment.creatorId !== myID && admin"
+                        clickable
+                        outline
+                        @click="banUserFromComment(comment)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="gavel"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Ban user</q-item-section
                         >
                       </q-item>
                     </q-list>
@@ -438,6 +446,7 @@ export default defineComponent({
       posterUsername: "",
       myID: auth.currentUser.uid,
       isHidden: false,
+      admin: false,
     };
   },
   setup() {
@@ -485,18 +494,53 @@ export default defineComponent({
       });
     };
     const deletePost = (post) => {
-      if (auth.currentUser.uid === post.creatorId) {
-        deleteDoc(doc(db, "posts", post.id));
-      } else {
-        return;
-      }
+      deleteDoc(doc(db, "posts", post.id));
     };
     const deleteComment = (comment) => {
-      if (auth.currentUser.uid === comment.creatorId) {
-        deleteDoc(doc(db, `posts/${postID}/comments/`, comment.id));
-      } else {
-        return;
-      }
+      deleteDoc(doc(db, `posts/${postID}/comments/`, comment.id));
+    };
+
+    const banUserFromComment = (comment) => {
+      $q.dialog({
+        title: "Ban user",
+        message: `Do you want to ban user @${comment.creatorUsername} from Starshifted?`,
+        prompt: {
+          model: "",
+          placeholder: "Ban reasoning",
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        console.log("Banned user!");
+        update(dbRef(database, "users/" + comment.creatorId), {
+          status: {
+            banned: true,
+            banReasoning: data,
+          },
+        });
+      });
+    };
+    const banUser = (post) => {
+      $q.dialog({
+        title: "Ban user",
+        message: `Do you want to ban user @${post.creatorUsername} from Starshifted?`,
+        prompt: {
+          model: "",
+          placeholder: "Ban reasoning",
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        console.log("Banned user!");
+        update(dbRef(database, "users/" + post.creatorId), {
+          status: {
+            banned: true,
+            banReasoning: data,
+          },
+        });
+      });
     };
     return {
       confirmPost,
@@ -504,6 +548,8 @@ export default defineComponent({
       deletePost,
       deleteComment,
       confirmReport,
+      banUserFromComment,
+      banUser,
     };
   },
   methods: {
@@ -581,6 +627,102 @@ export default defineComponent({
       });
     },
     async getFollowed(post) {
+      const myID = auth.currentUser.uid;
+      const db2 = getDatabase();
+      const followerRef = dbRef(db2);
+      const getData = await get(child(followerRef, "users/" + myID)).then(
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const followingData = snapshot.val();
+            if (followingData.following === undefined) {
+              this.following = "Follow";
+              return;
+            }
+            if (followingData.following[post.creatorId]) {
+              this.following = "Unfollow";
+              return;
+            } else {
+              this.following = "Follow";
+              return;
+            }
+          }
+        }
+      );
+    },
+    followFromComment(post) {
+      const followerID = auth.currentUser.uid;
+
+      const db2 = getDatabase();
+      const q = dbRef(db2, "users/" + post.creatorId);
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          onValue(
+            q,
+            (theirSnapshot) => {
+              const info = theirSnapshot.val();
+
+              const myRef = dbRef(database, "users/" + followerID);
+              onValue(
+                myRef,
+                (mySnapshot) => {
+                  const myInfo = mySnapshot.val();
+                  if (info.followers === undefined) {
+                    this.followerCount = 0;
+                  }
+
+                  if (info.followers === undefined) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: true,
+                    });
+                  } else if (!info.followers[followerID]) {
+                    this.followed = true;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Unfollow";
+
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: true,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: true,
+                    });
+                  } else {
+                    this.followed = false;
+                    this.followerCount = theirSnapshot.child("followers").size;
+                    this.followingCount = theirSnapshot.child("following").size;
+                    this.following = "Follow";
+
+                    update(dbRef(database, "users/" + post.creatorId), {
+                      [`followers/${followerID}`]: null,
+                    });
+
+                    update(dbRef(database, "users/" + followerID), {
+                      [`following/${post.creatorId}`]: null,
+                    });
+                  }
+                },
+                {
+                  onlyOnce: true,
+                }
+              );
+            },
+            {
+              onlyOnce: true,
+            }
+          );
+        }
+      });
+    },
+    async getCommentFollowed(post) {
       const myID = auth.currentUser.uid;
       const db2 = getDatabase();
       const followerRef = dbRef(db2);
@@ -916,6 +1058,7 @@ export default defineComponent({
       .then((snapshot) => {
         if (snapshot.exists()) {
           this.myImage = snapshot.val().image;
+          this.admin = snapshot.val().admin;
           if (snapshot.val().verified === undefined) {
             this.userVerified = false;
           } else {

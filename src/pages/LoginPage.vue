@@ -1,7 +1,7 @@
 <template>
   <q-page
     class="full-height full-width row justify-center items-center"
-    style="background: linear-gradient(#101010, #5a4a9f)"
+    style="background: radial-gradient(#5a4a9f, #101010)"
   >
     <div class="column q-pa-lg">
       <div class="row">
@@ -333,24 +333,7 @@ export default {
                 // Data saved successfully!
                 this.loggedIn = true;
                 this.$emit("logged-in", this.loggedIn);
-
-                const dbReff = dbRef(getDatabase());
-                get(child(dbReff, `users/${user.uid}`))
-                  .then((snapshot) => {
-                    if (snapshot.exists()) {
-                      let data = snapshot.val();
-                      if (data.admin) {
-                        this.$router.push("/admin");
-                      } else {
-                        this.$router.push("/");
-                      }
-                    } else {
-                      console.log("No data available");
-                    }
-                  })
-                  .catch((error) => {
-                    console.error(error);
-                  });
+                this.$router.push("/");
               })
               .catch((error) => {
                 // The write failed...

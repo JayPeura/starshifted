@@ -134,7 +134,7 @@ export default route(function (/* { store, ssrContext } */) {
       adminIDchecker.includes(auth.currentUser.uid) &&
       !bannedChecker.includes(auth.currentUser.uid)
     ) {
-      next("/admin");
+      next("/reports");
     } else if (
       (requiresAdmin || requiresAuth) &&
       bannedChecker.includes(auth.currentUser.uid)

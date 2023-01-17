@@ -1,12 +1,12 @@
 <template>
   <q-page padding>
-    <q-list separator>
+    <q-list v-if="admin" separator>
       <transition-group
         appear
         enter-active-class="animated fadeIn slow"
         leave-active-class="animated fadeOut slow"
       >
-        <q-item v-for="post in feedback" :key="post.id" class="q-py-md">
+        <q-item v-for="post in reports" :key="post.id" class="q-py-md">
           <q-item-section>
             <q-item-label>
               <span
@@ -18,22 +18,13 @@
                   overflow: hidden;
                 "
               >
-                {{ post.name }}
+                {{ post.posterUsername }}
               </span>
-              <span
-                class="text-grey-7"
-                style="position: relative; padding-right: 50px; float: right"
-              >
-                {{
-                  post.date > Date.now() - 35 * 60 * 60 * 1000
-                    ? formatDistanceStrict(post.date, new Date())
-                    : format(post.date, "d MMM")
-                }}</span
-              >
             </q-item-label>
             <q-item-label class="post-content text-body1">
-              {{ post.content }}
+              Post content: "{{ post.postContent }}"
             </q-item-label>
+            <span>Report: {{ post.reportContent }}</span>
           </q-item-section>
           <q-btn
             round
@@ -64,27 +55,24 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { ref as dbRef, getDatabase, get, child } from "firebase/database";
 import db, { auth } from "src/boot/firebase";
-import { formatDistanceStrict, formatDistance, format } from "date-fns";
-import { ref } from "vue";
 import { useQuasar } from "quasar";
 
 export default {
   name: "FeedbackPage",
   data() {
     return {
-      formatDistance,
-      formatDistanceStrict,
-      format,
-      feedback: [],
+      reports: [],
+      admin: false,
     };
   },
   setup() {
     const $q = useQuasar();
     const confirm = (post) => {
       $q.dialog({
-        title: "Delete Feedback",
-        message: `Would you like to remove this feedback: ${post.content}?`,
+        title: "Delete Report",
+        message: `Would you like to remove this report: ${post.content}?`,
         cancel: true,
         persistent: true,
       }).onOk(() => {
@@ -92,7 +80,7 @@ export default {
       });
     };
     const removeFeedback = (post) => {
-      deleteDoc(doc(db, "feedback", post.id));
+      deleteDoc(doc(db, "reports", post.id));
     };
     return { confirm, removeFeedback };
   },
@@ -100,14 +88,14 @@ export default {
     getPosts() {
       const myID = auth.currentUser.uid;
 
-      const q = query(collection(db, "feedback"), orderBy("date"));
+      const q = query(collection(db, "reports"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           let postChange = change.doc.data();
           postChange.id = change.doc.id;
 
           if (change.type === "added") {
-            this.feedback.unshift(postChange);
+            this.reports.unshift(postChange);
           }
 
           if (change.type === "modified") {
@@ -127,6 +115,20 @@ export default {
     },
   },
   mounted() {
+    const userId = auth.currentUser.uid;
+    const dbReff = dbRef(getDatabase());
+
+    get(child(dbReff, `users/${userId}`))
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          this.admin = snapshot.val().admin;
+        } else {
+          console.log("No data available");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
     this.getPosts();
   },
 };

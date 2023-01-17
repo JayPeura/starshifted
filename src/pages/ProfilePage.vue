@@ -1,6 +1,10 @@
 <template>
   <q-page>
-    <q-scroll-area :visible="false" class="absolute full-width full-height">
+    <q-scroll-area
+      v-if="!banned"
+      :visible="false"
+      class="absolute full-width full-height"
+    >
       <div class="userInfo" v-for="user in users" :key="user.id">
         <div class="flexy">
           <div class="image-upload">
@@ -256,9 +260,28 @@
                               >
                             </q-item>
                             <q-separator
-                              v-if="post.creatorId !== myID"
+                              v-if="post.creatorId !== myID && admin"
                               color="grey-9"
                             />
+                            <q-item
+                              v-if="post.creatorId !== myID && admin"
+                              clickable
+                              outline
+                              @click="banUser(post)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="gavel"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Ban user</q-item-section
+                              >
+                            </q-item>
                           </q-list>
                         </q-menu>
                       </q-btn>
@@ -273,7 +296,7 @@
                         color="grey"
                         icon="chat_bubble_outline"
                         size="sm"
-                        :to="'/admin/post/' + post.id"
+                        :to="'/post/' + post.id"
                       />
                       <q-btn flat round color="grey" icon="cached" size="sm" />
                       <q-btn
@@ -401,7 +424,7 @@
                               >
                             </q-item>
                             <q-item
-                              v-if="post.creatorId !== myID"
+                              v-if="post.creatorId !== myID && !admin"
                               clickable
                               @click="confirmReport(post)"
                             >
@@ -420,7 +443,7 @@
                             >
                             <q-item
                               clickable
-                              v-if="post.creatorId === myID"
+                              v-if="post.creatorId === myID || admin"
                               @click="confirm(post)"
                             >
                               <q-item-section avatar>
@@ -434,6 +457,29 @@
                               /></q-item-section>
                               <q-item-section class="text-red"
                                 >Delete post</q-item-section
+                              >
+                            </q-item>
+                            <q-separator
+                              v-if="post.creatorId !== myID && admin"
+                              color="grey-9"
+                            />
+                            <q-item
+                              v-if="post.creatorId !== myID && admin"
+                              clickable
+                              outline
+                              @click="banUser(post)"
+                            >
+                              <q-item-section avatar>
+                                <q-icon
+                                  :color="
+                                    $q.dark.isActive ? 'secondary' : 'primary'
+                                  "
+                                  name="gavel"
+                                  class="text-red"
+                                  size="sm"
+                              /></q-item-section>
+                              <q-item-section class="text-red"
+                                >Ban user</q-item-section
                               >
                             </q-item>
                           </q-list>
@@ -481,6 +527,56 @@
         </q-tab-panels>
       </q-card>
     </q-scroll-area>
+    <div class="isBanned" v-else>
+      <div class="userInfo" v-for="user in users" :key="user.id">
+        <div class="flexy">
+          <div class="image-upload">
+            <label for="actual-btn">
+              <q-img
+                :key="$route.fullPath"
+                :src="user.image"
+                alt="avatar"
+                :class="user.id === myID ? 'avatar' : 'notYourAvatar'"
+                for="actual-btn"
+            /></label>
+
+            <input
+              type="file"
+              ref="fileInput"
+              :id="user.id === myID ? 'actual-btn' : ''"
+              @change="onFilePicked"
+              accept=".jpg, .png, .jpeg"
+              hidden
+            />
+          </div>
+
+          <h5 class="names">
+            <strong>{{ user.displayName }}</strong>
+            <q-icon
+              :name="
+                user.verified !== undefined && user.verified
+                  ? 'bi-moon-stars-fill'
+                  : ''
+              "
+              :class="
+                user.verified !== undefined && user.verified
+                  ? 'showWhenVerified'
+                  : 'hideWhenNotVerified'
+              "
+            />
+            {{ " " }}
+            <span class="username">@{{ user.username }}</span>
+          </h5>
+        </div>
+        <q-item-section>
+          <q-item-label class="rounded-borders bio-content text-body1">
+            <h5 style="display: flex; justify-content: center">
+              This user has been permanently suspended.
+            </h5>
+          </q-item-label>
+        </q-item-section>
+      </div>
+    </div>
   </q-page>
 </template>
 
@@ -563,6 +659,8 @@ export default defineComponent({
       posts: [],
       likedPosts: [],
       senderList: false,
+      admin: false,
+      banned: false,
     };
   },
   setup() {
@@ -1208,6 +1306,7 @@ export default defineComponent({
         onValue(userFollowRef, (snapshot1) => {
           const info = snapshot1.val();
           this.myImage = info.image;
+          this.admin = info.admin;
         });
         get(child(dbReff, `users/${key}`))
           .then((snapshotUser) => {
@@ -1235,7 +1334,9 @@ export default defineComponent({
               } else {
                 this.followingCount = 0;
               }
-
+              if (theUser.status !== undefined) {
+                this.banned = theUser.status.banned;
+              }
               if (key === userId) {
                 this.isYourProfile = true;
               }

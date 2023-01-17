@@ -30,17 +30,31 @@
       bordered
       :width="323"
     >
-      <q-img
+      <img
         v-if="$q.dark.isActive"
         class="logo-left"
         src="~assets/starshiftedWhite.png"
       />
-      <q-img
+      <img
         v-if="!$q.dark.isActive"
         class="logo-left"
         src="~assets/starshifted.png"
-      /><q-badge outline color="blue" align="top" style="margin-top: 10px"
+      />
+      <q-badge
+        v-if="!admin"
+        outline
+        color="blue"
+        align="top"
+        style="margin-top: 10px"
         >ALPHA</q-badge
+      >
+      <q-badge
+        outline
+        color="accent"
+        align="top"
+        v-else
+        style="margin-top: 10px"
+        >ADMIN</q-badge
       >
 
       <q-list>
@@ -123,7 +137,10 @@
           <q-item-section class="text-h6">Settings</q-item-section>
         </q-item>
 
-        <div class="separator-container">
+        <div
+          class="separator-container"
+          v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
+        >
           <div class="separator">
             <q-item to="/feedback" clickable v-ripple exact>
               <q-item-section avatar>
@@ -135,6 +152,17 @@
               </q-item-section>
 
               <q-item-section class="text-h6">Feedback</q-item-section>
+            </q-item>
+            <q-item to="/reports" v-if="admin" clickable v-ripple exact>
+              <q-item-section avatar>
+                <q-icon
+                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                  name="warning"
+                  size="md"
+                />
+              </q-item-section>
+
+              <q-item-section class="text-h6">Reports</q-item-section>
             </q-item>
             <q-item to="/about" clickable v-ripple exact>
               <q-item-section avatar>
@@ -257,9 +285,9 @@
     </q-drawer>
 
     <q-page-container>
-      <router-view :key="$route.fullPath" v-slot="{ Component }">
+      <router-view v-slot="{ Component }">
         <keep-alive
-          ><transition name="fade" mode="out-in">
+          ><transition :key="$route.fullPath" name="fade" mode="out-in">
             <component :is="Component" /> </transition></keep-alive
       ></router-view>
     </q-page-container>
@@ -296,6 +324,7 @@ export default {
       messagesCount: 0,
       users: [],
       userID: "",
+      admin: false,
     };
   },
   setup() {
@@ -379,6 +408,7 @@ export default {
           .then((snapshot) => {
             if (snapshot.exists()) {
               this.myUsername = snapshot.val().username;
+              this.admin = snapshot.val().admin;
             } else {
               console.log("No data available");
             }

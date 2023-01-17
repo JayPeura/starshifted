@@ -10,7 +10,7 @@
             autogrow
             borderless
             :counter="newStarshiftingPost ? true : false"
-            maxlength="480"
+            maxlength="680"
             class="new-post"
           >
             <template v-slot:before>
@@ -157,7 +157,7 @@
                       <q-separator color="grey-9" />
 
                       <q-item
-                        v-if="post.creatorId === myID"
+                        v-if="post.creatorId === myID || admin"
                         clickable
                         @click="deletePost(post)"
                       >
@@ -174,7 +174,7 @@
                       >
 
                       <q-item
-                        v-if="post.creatorId !== myID"
+                        v-if="post.creatorId !== myID && !admin"
                         clickable
                         @click="confirmReport(post)"
                       >
@@ -187,6 +187,27 @@
                         /></q-item-section>
                         <q-item-section class="text-red"
                           >Report post</q-item-section
+                        >
+                      </q-item>
+                      <q-separator
+                        v-if="post.creatorId !== myID && admin"
+                        color="grey-9"
+                      />
+                      <q-item
+                        v-if="post.creatorId !== myID && admin"
+                        clickable
+                        outline
+                        @click="banUser(post)"
+                      >
+                        <q-item-section avatar>
+                          <q-icon
+                            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+                            name="gavel"
+                            class="text-red"
+                            size="sm"
+                        /></q-item-section>
+                        <q-item-section class="text-red"
+                          >Ban user</q-item-section
                         >
                       </q-item>
                     </q-list>
@@ -299,7 +320,6 @@ export default defineComponent({
       imageUrl: imageUrlRef,
       image: imageRef,
       posts: [],
-      likes: 0,
       imageShow: false,
       postLikes: likeRef,
       following: "Follow",
@@ -310,6 +330,7 @@ export default defineComponent({
       myID: auth.currentUser.uid,
       isHidden: false,
       isLiked: false,
+      admin: false,
     };
   },
   setup() {
@@ -335,8 +356,29 @@ export default defineComponent({
         });
       });
     };
+    const banUser = (post) => {
+      $q.dialog({
+        title: "Ban user",
+        message: `Do you want to ban user @${post.creatorUsername} from Starshifted?`,
+        prompt: {
+          model: "",
+          placeholder: "Ban reasoning",
+          type: "text",
+        },
+        cancel: true,
+        persistent: true,
+      }).onOk((data) => {
+        console.log("Banned user!");
+        update(dbRef(database, "users/" + post.creatorId), {
+          status: {
+            banned: true,
+            banReasoning: data,
+          },
+        });
+      });
+    };
 
-    return { confirmReport };
+    return { confirmReport, banUser };
   },
   methods: {
     followFromPost(post) {
@@ -415,11 +457,6 @@ export default defineComponent({
     async getFollowed(post) {
       const myID = auth.currentUser.uid;
       const db2 = getDatabase();
-      const q2 = query(
-        dbRef(db2, "users"),
-        orderByChild("username"),
-        equalTo(post.creatorUsername)
-      );
       const followerRef = dbRef(db2);
       const getData = await get(child(followerRef, "users/" + myID)).then(
         (snapshot) => {
@@ -481,12 +518,6 @@ export default defineComponent({
         allowedIframeHostnames: ["www.youtube.com"],
       });
     },
-    reportUser(post) {
-      //get post user, send report to database
-    },
-    reportPost(post) {
-      //get post info (params), send report to database
-    },
     cancelFileUpload() {
       this.image = null;
       this.imageUrl = "";
@@ -538,7 +569,7 @@ export default defineComponent({
       this.newStarshiftingPost = "";
     },
     deletePost(post) {
-      if (auth.currentUser.uid === post.creatorId) {
+      if (auth.currentUser.uid === post.creatorId || this.admin) {
         deleteDoc(doc(db, "posts", post.id));
       } else {
         return;
@@ -724,6 +755,12 @@ export default defineComponent({
       .then((snapshot) => {
         if (snapshot.exists()) {
           this.myImage = snapshot.val().image;
+          this.admin = snapshot.val().admin;
+          if (!snapshot.val().verified === undefined) {
+            this.userVerified = snapshot.val().verified;
+          } else {
+            this.userVerified = false;
+          }
         } else {
           console.log("No data available");
         }

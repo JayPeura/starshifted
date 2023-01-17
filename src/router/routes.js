@@ -1,118 +1,4 @@
-import { auth, database } from "../boot/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  ref as dbRef,
-  getDatabase,
-  get,
-  child,
-  query,
-  onValue,
-  orderByChild,
-  equalTo,
-} from "firebase/database";
-
-let userID;
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    const userId = auth.currentUser.uid;
-    const dbReff = dbRef(getDatabase());
-
-    get(child(dbReff, `users/${userId}`))
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          userID = userId;
-        } else {
-          console.log("No data available");
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-  }
-});
-
 const routes = [
-  {
-    path: "/admin",
-    name: "Admin",
-    component: () => import("layouts/AdminLayout.vue"),
-    meta: { requiresAdmin: true, requiresAuth: true },
-    children: [
-      //ADMIN ROUTES
-      {
-        path: "",
-        component: () => import("pages/admin/HomePage.vue"),
-        name: "Admin view: Home",
-        props: true,
-      },
-      {
-        path: "feedback",
-        component: () => import("pages/admin/FeedbackPage.vue"),
-        name: "Read feedback",
-        props: true,
-      },
-      {
-        path: "post/:postId",
-        component: () => import("pages/admin/PostPage.vue"),
-        name: "Admin view: Post",
-        props: true,
-      },
-      {
-        path: "forgotpassword",
-        component: () => import("pages/admin/ForgotPassword.vue"),
-        name: "Admin view: Forgot Password",
-        props: true,
-      },
-      {
-        path: "notifications",
-        component: () => import("pages/admin/NotificationsPage.vue"),
-        name: "Admin view: Notifications",
-        props: true,
-      },
-      {
-        path: "messages",
-        component: () => import("pages/admin/MessagesPage.vue"),
-        name: "Admin view:  Messaging",
-        props: true,
-      },
-      {
-        path: "messages/:chatID",
-        component: () => import("pages/admin/MessageView.vue"),
-        name: "Admin view: Message",
-        props: true,
-      },
-      {
-        path: "profile",
-        component: () => import("pages/admin/ProfilePage.vue"),
-        name: "Admin view: Empty profile",
-        props: true,
-      },
-      {
-        path: "profile/:username",
-        component: () => import("pages/admin/ProfilePage.vue"),
-        name: "Admin view: Profile",
-        props: true,
-      },
-      {
-        path: "settings",
-        component: () => import("pages/admin/SettingsPage.vue"),
-        name: "Admin view: Settings",
-        props: true,
-      },
-      {
-        path: "reports",
-        component: () => import("pages/admin/ReportsPage.vue"),
-        name: "Reports",
-        props: true,
-      },
-      {
-        path: "about",
-        component: () => import("pages/admin/AboutPage.vue"),
-        name: "Admin view: About",
-      },
-    ],
-  },
   {
     path: "/",
     component: () => import("layouts/MainLayout.vue"),
@@ -182,6 +68,13 @@ const routes = [
         path: "about",
         component: () => import("pages/AboutPage.vue"),
         name: "About and Rules",
+      },
+      {
+        path: "reports",
+        component: () => import("pages/ReportsPage.vue"),
+        name: "Reports",
+        meta: { requiresAdmin: true },
+        props: true,
       },
     ],
   },
