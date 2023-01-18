@@ -16,6 +16,7 @@
 - [DONE] completely redo the admin system
 - [DONE] add a visual indication for public on one's profile about their ongoing ban
 - [DONE] open pictures as larger versions in a modal/dialog
+- [DONE] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post
 
 # WIP ITEMS
 
@@ -32,4 +33,3 @@
 - [WIP] show only followings' posts in home page until trending topics have been implemented
 - [WIP] forgot password to login
 - [WIP] change password & email in settings
-- [WIP] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post

@@ -34,18 +34,14 @@
                 &bull;
                 <br class="lt-md" />
               </span>
-              <span class="text-grey-7">
-                {{
-                  post.date > Date.now() - 35 * 60 * 60 * 1000
-                    ? formatDistanceStrict(post.date, new Date())
-                    : format(post.date, "d MMM")
-                }}</span
-              >
             </q-item-label>
             <q-item-label class="post-content text-body1">
               <span v-html="linkifyText(post)"></span>
               <img :src="post.postImg" class="postImage" />
             </q-item-label>
+            <span class="text-grey-7 q-mt-md">
+              {{ format(post.date, "p - PPP") }}</span
+            >
             <div class="postMenu row justify-between q-mt-sm">
               <q-btn
                 flat
