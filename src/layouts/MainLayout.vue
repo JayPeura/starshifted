@@ -427,9 +427,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.left-drawer {
-  padding-left: 16em;
-}
 a.q-router-link--active {
   color: inherit;
 }
@@ -437,9 +434,6 @@ a.q-router-link--active {
   .leftDrawerBtn {
     display: none;
   }
-}
-.right-drawer {
-  padding-right: 16em;
 }
 .logo-left {
   width: 4.5em;

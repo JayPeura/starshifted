@@ -132,7 +132,19 @@
               </q-input>
             </q-form>
           </q-card-section>
-
+          <p
+            @click="$router.push('/forgotpassword')"
+            class="text-grey-6"
+            style="
+              cursor: pointer;
+              display: flex;
+              justify-content: center;
+              margin-bottom: 0;
+              margin-top: -5px;
+            "
+          >
+            Forgot your password?
+          </p>
           <q-card-actions class="q-px-xl">
             <q-btn
               unelevated
@@ -143,7 +155,7 @@
               :label="btnLabel"
             />
           </q-card-actions>
-          <q-card-section v-if="!register" class="text-center q-pa-sm">
+          <q-card-section v-if="!register" class="text-center q-pa-xs">
             <p
               @click="switchTypeForm"
               class="text-grey-6"

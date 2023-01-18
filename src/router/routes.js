@@ -23,12 +23,6 @@ const routes = [
         props: true,
       },
       {
-        path: "forgotpassword",
-        component: () => import("pages/ForgotPassword.vue"),
-        name: "ForgotPassword",
-        props: true,
-      },
-      {
         path: "notifications",
         component: () => import("pages/NotificationsPage.vue"),
         name: "Notifications",
@@ -93,6 +87,12 @@ const routes = [
         path: "about",
         component: () => import("pages/login/AboutPage.vue"),
         name: "About",
+      },
+      {
+        path: "/forgotpassword",
+        component: () => import("pages/login/ForgotPassword.vue"),
+        name: "Forgot Password",
+        props: true,
       },
     ],
   },
