@@ -15,7 +15,7 @@
           >
             <template v-slot:before>
               <q-avatar round size="xl">
-                <q-img v-bind:src="myImage" class="postavatar" />
+                <q-img v-bind:src="myImage" class="myPostAvatar" />
               </q-avatar>
             </template>
           </q-input>
@@ -66,7 +66,7 @@
         :color="$q.dark.isActive ? 'grey-10' : 'grey-4'"
         :class="$q.dark.isActive ? 'dividerDark' : 'dividerLight'"
       />
-      <q-list separator>
+      <q-list v-if="$route.name === 'Home'" separator>
         <transition-group
           appear
           enter-active-class="animated fadeIn slow"
@@ -82,7 +82,7 @@
                 <q-avatar round size="xl">
                   <q-img
                     v-bind:src="post.creatorImage"
-                    class="postavatar"
+                    class="homePostAvatar"
                   /> </q-avatar
               ></label>
 
@@ -121,7 +121,7 @@
                   }}</span
                 >
               </q-item-label>
-              <q-item-label class="post-content text-body1">
+              <q-item-label class="homePostContent text-body1">
                 <span v-html="linkifyText(post)"></span>
                 <img
                   @click="
@@ -244,16 +244,23 @@
                   :icon="checkIcon(post)"
                   size="sm"
                 >
-                  <span class="postLikes">
-                    {{
-                      post.whoLiked !== undefined
-                        ? new Intl.NumberFormat("en-GB", {
-                            notation: "compact",
-                          }).format(Object.keys(post.whoLiked).length)
-                        : 0
-                    }}
-                  </span></q-btn
+                </q-btn>
+                <span
+                  class="postLikes"
+                  @click="
+                    likePrompt = true;
+                    selectedPost = post;
+                    selectedLikes();
+                  "
                 >
+                  {{
+                    post.whoLiked !== undefined
+                      ? new Intl.NumberFormat("en-GB", {
+                          notation: "compact",
+                        }).format(Object.keys(post.whoLiked).length)
+                      : 0
+                  }}
+                </span>
 
                 <q-btn flat round color="grey" icon="share" size="sm" />
               </div>
@@ -267,6 +274,77 @@
         />
       </q-list>
     </q-scroll-area>
+    <q-dialog v-model="likePrompt" persistent>
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">People who liked this post</div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section style="max-height: 35vh" class="scroll"
+          ><q-list v-if="!noLikes" separator>
+            <q-item class="likers" v-for="liker in likers" :key="liker.id">
+              <q-item-section avatar>
+                <label
+                  for="actual-btn"
+                  class="clickableLabel"
+                  @click="handleRedirectLikes(liker)"
+                >
+                  <q-avatar round size="xl">
+                    <q-img
+                      :src="liker.image"
+                      class="homePostAvatar"
+                    /> </q-avatar
+                ></label>
+
+                <button id="actual-btn" hidden></button>
+              </q-item-section>
+              <q-item-label
+                class="text-subtitle1"
+                style="display: flex; align-items: center"
+                ><strong
+                  @click="handleRedirectLikes(liker)"
+                  class="clickableLabel"
+                  >{{ liker.displayName }}</strong
+                >
+                <q-icon
+                  :name="liker.verified ? 'bi-moon-stars-fill' : ''"
+                  :class="
+                    liker.verified ? 'showWhenVerified' : 'hideWhenNotVerified'
+                  "
+                />
+                <span
+                  class="text-grey-7"
+                  style="
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
+                  "
+                >
+                  @{{ liker.username }}
+                  <br />
+                </span>
+                <br />
+                <br />
+                <br /> </q-item-label></q-item
+          ></q-list>
+        </q-card-section>
+        <div v-if="noLikes" align="center">No one liked this post yet.</div>
+        <br />
+
+        <q-separator />
+
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Close"
+            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            v-close-popup
+            @click="likers = []"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -279,13 +357,8 @@ import {
   addDoc,
   deleteDoc,
   doc,
-  setDoc,
-  where,
-  getDocs,
   getDoc,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
   deleteField,
 } from "firebase/firestore";
 import db, { database, auth, storage } from "src/boot/firebase";
@@ -294,13 +367,10 @@ import {
   get,
   getDatabase,
   child,
-  orderByChild,
-  equalTo,
   onValue,
 } from "firebase/database";
 import { defineComponent, ref, toRaw, nextTick } from "vue";
 import { formatDistance, formatDistanceStrict, format } from "date-fns";
-import { onAuthStateChanged } from "firebase/auth";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 import sanitizeHtml from "sanitize-html";
 import { useQuasar } from "quasar";
@@ -345,6 +415,10 @@ export default defineComponent({
       admin: false,
       imageShower: false,
       openImage: "",
+      likePrompt: false,
+      selectedPost: {},
+      likers: [],
+      noLikes: true,
     };
   },
   setup() {
@@ -391,10 +465,47 @@ export default defineComponent({
         });
       });
     };
-
     return { confirmReport, banUser };
   },
   methods: {
+    handleRedirectLikes(liker) {
+      console.log(liker);
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${liker.id}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.$router.push("/profile/" + snapshot.val().username);
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    selectedLikes() {
+      if (this.selectedPost.whoLiked !== undefined) {
+        this.noLikes = true;
+      }
+      const likes = Object.keys(this.selectedPost.whoLiked);
+      likes.forEach((likerID) => {
+        const dbReff = dbRef(getDatabase());
+        get(child(dbReff, `users/${likerID}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              let likers = snapshot.val();
+              likers.id = snapshot.key;
+              this.likers.push(likers);
+              this.noLikes = false;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      });
+    },
     followFromPost(post) {
       const followerID = auth.currentUser.uid;
 
@@ -551,6 +662,7 @@ export default defineComponent({
     handleRedirect(post) {
       this.$router.push("/profile/" + post.creatorUsername);
     },
+
     async addNewPost() {
       const creatorID = auth.currentUser.uid;
       let newPost = {
@@ -644,121 +756,122 @@ export default defineComponent({
     getPosts() {
       const myID = auth.currentUser.uid;
 
-      const q = query(collection(db, "posts"), orderBy("date"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postQ = query(collection(db, "posts"), orderBy("date"));
+      const unsubscribe = onSnapshot(postQ, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           let postChange = change.doc.data();
           postChange.id = change.doc.id;
           this.postID = postChange.id;
           this.creatorID = postChange.creatorId;
+          if (postChange.underPostID === undefined) {
+            if (change.type === "added") {
+              this.creatorUsername = postChange.creatorUsername;
+              this.creatorDisplayname = postChange.creatorDisplayname;
+              this.creatorImage = postChange.creatorImage;
+              this.creatorVerified = postChange.isUserVerified;
+              this.postImage = postChange.postImg;
+              this.postID = postChange.id;
+              this.creatorID = postChange.creatorId;
+              this.myPosts.unshift(postChange.id);
+              this.posts.unshift(postChange);
 
-          if (change.type === "added") {
-            this.creatorUsername = postChange.creatorUsername;
-            this.creatorDisplayname = postChange.creatorDisplayname;
-            this.creatorImage = postChange.creatorImage;
-            this.creatorVerified = postChange.isUserVerified;
-            this.postImage = postChange.postImg;
-            this.postID = postChange.id;
-            this.creatorID = postChange.creatorId;
-            this.myPosts.unshift(postChange.id);
-            this.posts.unshift(postChange);
+              if (postChange.creatorId === this.creatorID) {
+                const joinedArray = this.myPosts.join(" ");
+                const array = joinedArray.split(" ");
+                const filteredArray = array.find(
+                  (item) => item === postChange.id
+                );
 
-            if (postChange.creatorId === this.creatorID) {
-              const joinedArray = this.myPosts.join(" ");
-              const array = joinedArray.split(" ");
-              const filteredArray = array.find(
-                (item) => item === postChange.id
-              );
+                const usernameRef = dbRef(
+                  database,
+                  "users/" + postChange.creatorId
+                );
+                onValue(usernameRef, (snapshot) => {
+                  if (snapshot.val() !== null) {
+                    const data = snapshot.val();
+                    if (data.verified === undefined) {
+                      this.userVerified = false;
+                      this.currUsername = data.username;
+                      this.currName = data.displayName;
+                      if (this.creatorID === myID && this.postID) {
+                        const replaceInfo = doc(db, "posts/", filteredArray);
+                        const newInfo = {
+                          creatorUsername: data.username,
+                          creatorDisplayname: data.displayName,
+                          isUserVerified: false,
+                          creatorImage: data.image,
+                          isHidden: false,
+                        };
+                        updateDoc(replaceInfo, newInfo);
+                      }
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isUserVerified: this.userVerified,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else {
+                      this.userVerified = data.verified;
+                      this.currUsername = data.username;
+                      this.currName = data.displayName;
 
-              const usernameRef = dbRef(
-                database,
-                "users/" + postChange.creatorId
-              );
-              onValue(usernameRef, (snapshot) => {
-                if (snapshot.val() !== null) {
-                  const data = snapshot.val();
-                  if (data.verified === undefined) {
+                      if (this.creatorID === myID && this.postID) {
+                        const replaceInfo = doc(db, "posts/", filteredArray);
+                        const newInfo = {
+                          creatorUsername: data.username,
+                          creatorDisplayname: data.displayName,
+                          isUserVerified: data.verified,
+                          creatorImage: data.image,
+                          isHidden: false,
+                        };
+                        updateDoc(replaceInfo, newInfo);
+                      } else if (!this.creatorID === myID) {
+                        const replaceInfo = doc(db, "posts/", filteredArray);
+                        const newInfo = {
+                          isHidden: true,
+                        };
+                        updateDoc(replaceInfo, newInfo);
+                      }
+                      const replaceInfo = doc(db, "posts/", filteredArray);
+                      const newInfo = {
+                        isUserVerified: this.userVerified,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
+                  } else if (snapshot.val() === null) {
                     this.userVerified = false;
-                    this.currUsername = data.username;
-                    this.currName = data.displayName;
-                    if (this.creatorID === myID && this.postID) {
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        creatorUsername: data.username,
-                        creatorDisplayname: data.displayName,
-                        isUserVerified: false,
-                        creatorImage: data.image,
-                        isHidden: false,
-                      };
-                      updateDoc(replaceInfo, newInfo);
-                    }
-                    const replaceInfo = doc(db, "posts/", filteredArray);
-                    const newInfo = {
-                      isUserVerified: this.userVerified,
-                    };
-                    updateDoc(replaceInfo, newInfo);
-                  } else {
-                    this.userVerified = data.verified;
-                    this.currUsername = data.username;
-                    this.currName = data.displayName;
+                    this.currUsername = "";
+                    this.currName = "Deleted User";
+                    this.creatorUsername = "";
+                    this.creatorDisplayname = "Deleted User";
+                    this.creatorImage = this.defaultImage;
+                    this.creatorVerified = false;
 
-                    if (this.creatorID === myID && this.postID) {
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        creatorUsername: data.username,
-                        creatorDisplayname: data.displayName,
-                        isUserVerified: data.verified,
-                        creatorImage: data.image,
-                        isHidden: false,
-                      };
-                      updateDoc(replaceInfo, newInfo);
-                    } else if (!this.creatorID === myID) {
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        isHidden: true,
-                      };
-                      updateDoc(replaceInfo, newInfo);
-                    }
                     const replaceInfo = doc(db, "posts/", filteredArray);
                     const newInfo = {
-                      isUserVerified: this.userVerified,
+                      creatorUsername: "",
+                      creatorDisplayname: "Deleted User",
+                      isUserVerified: false,
+                      creatorImage: this.defaultImage,
+                      content: "(deleted)",
                     };
                     updateDoc(replaceInfo, newInfo);
                   }
-                } else if (snapshot.val() === null) {
-                  this.userVerified = false;
-                  this.currUsername = "";
-                  this.currName = "Deleted User";
-                  this.creatorUsername = "";
-                  this.creatorDisplayname = "Deleted User";
-                  this.creatorImage = this.defaultImage;
-                  this.creatorVerified = false;
-
-                  const replaceInfo = doc(db, "posts/", filteredArray);
-                  const newInfo = {
-                    creatorUsername: "",
-                    creatorDisplayname: "Deleted User",
-                    isUserVerified: false,
-                    creatorImage: this.defaultImage,
-                    content: "(deleted)",
-                  };
-                  updateDoc(replaceInfo, newInfo);
-                }
-              });
+                });
+              }
             }
-          }
 
-          if (change.type === "modified") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            Object.assign(this.posts[index], postChange);
-          }
-          if (change.type === "removed") {
-            let index = this.posts.findIndex(
-              (post) => post.id === postChange.id
-            );
-            this.posts.splice(index, 1);
+            if (change.type === "modified") {
+              let index = this.posts.findIndex(
+                (post) => post.id === postChange.id
+              );
+              Object.assign(this.posts[index], postChange);
+            }
+            if (change.type === "removed") {
+              let index = this.posts.findIndex(
+                (post) => post.id === postChange.id
+              );
+              this.posts.splice(index, 1);
+            }
           }
         });
       });
@@ -802,9 +915,6 @@ export default defineComponent({
   right: 10px;
   top: 0;
 }
-.deleteHidden {
-  display: none;
-}
 .showWhenVerified {
   margin-left: 5px;
   margin-top: -2.5px;
@@ -831,22 +941,29 @@ export default defineComponent({
   width: 80%;
   align-items: center;
   padding: 0;
-  .postLikes {
-    display: flex;
-    position: absolute;
-    font-size: 16px;
-    color: grey;
-    margin-left: 60px;
-  }
 }
-.postavatar {
+.postLikes {
+  display: flex;
+  position: absolute;
+  font-size: 16px;
+  color: grey;
+  right: 35%;
+}
+.homePostAvatar {
   width: 50px;
   height: 50px;
   display: flex;
   cursor: pointer;
   object-fit: cover;
 }
-.post-content {
+.myPostAvatar {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  cursor: pointer;
+  object-fit: cover;
+}
+.homePostContent {
   white-space: pre-line;
 }
 .hiding {

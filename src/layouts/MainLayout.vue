@@ -286,10 +286,8 @@
 
     <q-page-container>
       <router-view v-slot="{ Component }">
-        <keep-alive
-          ><transition :key="$route.fullPath" name="fade" mode="out-in">
-            <component :is="Component" /> </transition></keep-alive
-      ></router-view>
+        <keep-alive><component :is="Component" /></keep-alive>
+      </router-view>
     </q-page-container>
   </q-layout>
 </template>

@@ -52,12 +52,21 @@
         </q-item-section>
         <q-item-section>
           <q-item-label>
-            <span style="margin-right: 25px; margin-left: 20px"
+            <span
+              @click="
+                followingPrompt = true;
+                selectedFollowing();
+              "
+              style="margin-right: 25px; margin-left: 20px"
               >{{ followingCount }}
               <span style="margin-left: 5px; color: grey">Following</span></span
             >
 
             <span
+              @click="
+                followerPrompt = true;
+                selectedFollowers();
+              "
               >{{ followerCount }}
               <span style="margin-left: 5px; color: grey">Followers</span></span
             >
@@ -144,7 +153,7 @@
           align="justify"
           narrow-indicator
         >
-          <q-tab name="posts" label="Posts" />
+          <q-tab name="ownPosts" label="My posts" />
           <q-tab name="likedPosts" label="Liked Posts" />
         </q-tabs>
 
@@ -152,7 +161,7 @@
 
         <q-tab-panels v-model="tab" animated>
           <q-tab-panel
-            name="posts"
+            name="ownPosts"
             :class="$q.dark.isActive ? 'bg-primary' : 'bg-secondary'"
           >
             <q-list separator>
@@ -161,16 +170,20 @@
                 enter-active-class="animated fadeIn slow"
                 leave-active-class="animated fadeOut slow"
               >
-                <q-item v-for="post in posts" :key="post.id" class="q-py-md">
+                <q-item
+                  v-for="ownPost in profilePosts"
+                  :key="ownPost.id"
+                  class="q-py-md"
+                >
                   <q-item-section avatar top>
                     <label
                       for="actual-btn"
                       class="clickableLabel"
-                      @click="handleRedirect(post)"
+                      @click="handleRedirect(ownPost)"
                     >
                       <q-avatar round size="xl">
                         <q-img
-                          v-bind:src="post.creatorImage"
+                          v-bind:src="ownPost.creatorImage"
                           class="postavatar"
                         /> </q-avatar
                     ></label>
@@ -183,20 +196,22 @@
                       class="text-subtitle1"
                       style="overflow: hidden"
                       ><strong
-                        @click="handleRedirect(post)"
+                        @click="handleRedirect(ownPost)"
                         class="clickableLabel"
-                        >{{ post.creatorDisplayname }}</strong
+                        >{{ ownPost.creatorDisplayname }}</strong
                       >
                       <q-icon
-                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
+                        :name="
+                          ownPost.isUserVerified ? 'bi-moon-stars-fill' : ''
+                        "
                         :class="
-                          post.isUserVerified
+                          ownPost.isUserVerified
                             ? 'showWhenVerified'
                             : 'hideWhenNotVerified'
                         "
                       />
                       <span class="text-grey-7 usernameStyle">
-                        @{{ post.creatorUsername }}
+                        @{{ ownPost.creatorUsername }}
                         &bull;
                       </span>
                       <span
@@ -204,15 +219,15 @@
                         style="position: relative; padding-right: 50px"
                       >
                         {{
-                          post.date > Date.now() - 35 * 60 * 60 * 1000
-                            ? formatDistanceStrict(post.date, new Date())
-                            : format(post.date, "d MMM")
+                          ownPost.date > Date.now() - 35 * 60 * 60 * 1000
+                            ? formatDistanceStrict(ownPost.date, new Date())
+                            : format(ownPost.date, "d MMM")
                         }}</span
                       >
                     </q-item-label>
                     <q-item-label class="post-content text-body1">
-                      <span v-html="linkifyText(post)"></span>
-                      <img :src="post.postImg" class="postImage" />
+                      <span v-html="linkifyText(ownPost)"></span>
+                      <img :src="ownPost.postImg" class="postImage" />
                     </q-item-label>
                     <div class="postMenu row justify-between q-mt-sm">
                       <q-btn
@@ -220,14 +235,14 @@
                         round
                         icon="more_vert"
                         size="13px"
-                        @click="getFollowed(post)"
+                        @click="getFollowed(ownPost)"
                       >
                         <q-menu auto-close>
                           <q-list style="min-width: 240px">
                             <q-item
-                              v-if="post.creatorId !== myID"
+                              v-if="ownPost.creatorId !== myID"
                               clickable
-                              @click="followFromPost(post)"
+                              @click="followFromownPost(ownPost)"
                             >
                               <q-item-section avatar>
                                 <q-icon
@@ -241,11 +256,15 @@
 
                               <q-item-section
                                 >{{ following }} @{{
-                                  post.creatorUsername
+                                  ownPost.creatorUsername
                                 }}</q-item-section
                               >
                             </q-item>
-                            <q-item clickable @click="confirm(post)">
+                            <q-item
+                              v-if="ownPost.creatorId === myID || admin"
+                              clickable
+                              @click="confirm(ownPost)"
+                            >
                               <q-item-section avatar>
                                 <q-icon
                                   :color="
@@ -260,14 +279,14 @@
                               >
                             </q-item>
                             <q-separator
-                              v-if="post.creatorId !== myID && admin"
+                              v-if="ownPost.creatorId !== myID && admin"
                               color="grey-9"
                             />
                             <q-item
-                              v-if="post.creatorId !== myID && admin"
+                              v-if="ownPost.creatorId !== myID && admin"
                               clickable
                               outline
-                              @click="banUser(post)"
+                              @click="banUser(ownPost)"
                             >
                               <q-item-section avatar>
                                 <q-icon
@@ -296,27 +315,34 @@
                         color="grey"
                         icon="chat_bubble_outline"
                         size="sm"
-                        :to="'/post/' + post.id"
+                        :to="'/post/' + ownPost.id"
                       />
                       <q-btn flat round color="grey" icon="cached" size="sm" />
                       <q-btn
                         flat
                         round
-                        @click="toggleLiked(post)"
-                        :color="checkColor(post)"
-                        :icon="checkIcon(post)"
+                        @click="toggleLiked(ownPost)"
+                        :color="checkColor(ownPost)"
+                        :icon="checkIcon(ownPost)"
                         size="sm"
                       >
-                        <span class="postLikes">
-                          {{
-                            post.whoLiked !== undefined
-                              ? new Intl.NumberFormat("en-GB", {
-                                  notation: "compact",
-                                }).format(Object.keys(post.whoLiked).length)
-                              : 0
-                          }}
-                        </span></q-btn
+                      </q-btn
+                      ><span
+                        class="postLikes"
+                        @click="
+                          likePrompt = true;
+                          selectedPost = ownPost;
+                          selectedLikes();
+                        "
                       >
+                        {{
+                          ownPost.whoLiked !== undefined
+                            ? new Intl.NumberFormat("en-GB", {
+                                notation: "compact",
+                              }).format(Object.keys(ownPost.whoLiked).length)
+                            : 0
+                        }}
+                      </span>
 
                       <q-btn flat round color="grey" icon="share" size="sm" />
                     </div>
@@ -507,16 +533,23 @@
                         :icon="checkIcon(post)"
                         size="sm"
                       >
-                        <span class="postLikes">
-                          {{
-                            post.whoLiked !== undefined
-                              ? new Intl.NumberFormat("en-GB", {
-                                  notation: "compact",
-                                }).format(Object.keys(post.whoLiked).length)
-                              : 0
-                          }}
-                        </span></q-btn
+                      </q-btn
+                      ><span
+                        class="postLikes"
+                        @click="
+                          likePrompt = true;
+                          selectedPost = post;
+                          selectedLikes();
+                        "
                       >
+                        {{
+                          post.whoLiked !== undefined
+                            ? new Intl.NumberFormat("en-GB", {
+                                notation: "compact",
+                              }).format(Object.keys(post.whoLiked).length)
+                            : 0
+                        }}
+                      </span>
 
                       <q-btn flat round color="grey" icon="share" size="sm" />
                     </div>
@@ -577,6 +610,242 @@
         </q-item-section>
       </div>
     </div>
+    <!-- LIKERS -->
+
+    <q-dialog v-model="likePrompt" persistent>
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">People who liked this post</div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section style="max-height: 35vh" class="scroll"
+          ><q-list v-if="!noLikes" separator>
+            <q-item class="likers" v-for="liker in likers" :key="liker.id">
+              <q-item-section avatar>
+                <label
+                  for="actual-btn"
+                  class="clickableLabel"
+                  @click="handleRedirectLikes(liker)"
+                >
+                  <q-avatar round size="xl">
+                    <q-img
+                      :src="liker.image"
+                      class="homePostAvatar"
+                    /> </q-avatar
+                ></label>
+
+                <button id="actual-btn" hidden></button>
+              </q-item-section>
+              <q-item-label
+                class="text-subtitle1"
+                style="display: flex; align-items: center"
+                ><strong
+                  @click="handleRedirectLikes(liker)"
+                  class="clickableLabel"
+                  >{{ liker.displayName }}</strong
+                >
+                <q-icon
+                  :name="liker.verified ? 'bi-moon-stars-fill' : ''"
+                  :class="
+                    liker.verified ? 'showWhenVerified' : 'hideWhenNotVerified'
+                  "
+                />
+                <span
+                  class="text-grey-7"
+                  style="
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
+                  "
+                >
+                  @{{ liker.username }}
+                  <br />
+                </span>
+                <br />
+                <br />
+                <br /> </q-item-label></q-item
+          ></q-list>
+        </q-card-section>
+        <div v-if="noLikes" align="center">No one liked this post yet.</div>
+        <br />
+
+        <q-separator />
+
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Close"
+            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            v-close-popup
+            @click="likers = []"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <!-- FOLLOWING -->
+
+    <q-dialog v-model="followingPrompt" persistent>
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">This account is following:</div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section style="max-height: 35vh" class="scroll"
+          ><q-list v-if="!noFollowing" separator>
+            <q-item
+              class="following"
+              v-for="following in followings"
+              :key="following.id"
+            >
+              <q-item-section avatar>
+                <label
+                  for="actual-btn"
+                  class="clickableLabel"
+                  @click="handleRedirectLikes(following)"
+                >
+                  <q-avatar round size="xl">
+                    <q-img
+                      :src="following.image"
+                      class="homePostAvatar"
+                    /> </q-avatar
+                ></label>
+
+                <button id="actual-btn" hidden></button>
+              </q-item-section>
+              <q-item-label
+                class="text-subtitle1"
+                style="display: flex; align-items: center"
+                ><strong
+                  @click="handleRedirectLikes(following)"
+                  class="clickableLabel"
+                  >{{ following.displayName }}</strong
+                >
+                <q-icon
+                  :name="following.verified ? 'bi-moon-stars-fill' : ''"
+                  :class="
+                    following.verified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
+                  "
+                />
+                <span
+                  class="text-grey-7"
+                  style="
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
+                  "
+                >
+                  @{{ following.username }}
+                  <br />
+                </span>
+                <br />
+                <br />
+                <br /> </q-item-label></q-item
+          ></q-list>
+        </q-card-section>
+        <div v-if="noFollowing" align="center">
+          This account hasn't followed anyone yet.
+        </div>
+        <br />
+
+        <q-separator />
+
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Close"
+            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            v-close-popup
+            @click="followings = []"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- FOLLOWERS -->
+
+    <q-dialog v-model="followerPrompt" persistent>
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">This account is followed by:</div>
+        </q-card-section>
+        <q-separator />
+
+        <q-card-section style="max-height: 35vh" class="scroll"
+          ><q-list v-if="!noFollowers" separator>
+            <q-item
+              class="followers"
+              v-for="follower in followers"
+              :key="follower.id"
+            >
+              <q-item-section avatar>
+                <label
+                  for="actual-btn"
+                  class="clickableLabel"
+                  @click="handleRedirectLikes(follower)"
+                >
+                  <q-avatar round size="xl">
+                    <q-img
+                      :src="follower.image"
+                      class="homePostAvatar"
+                    /> </q-avatar
+                ></label>
+
+                <button id="actual-btn" hidden></button>
+              </q-item-section>
+              <q-item-label
+                class="text-subtitle1"
+                style="display: flex; align-items: center"
+                ><strong
+                  @click="handleRedirectLikes(follower)"
+                  class="clickableLabel"
+                  >{{ follower.displayName }}</strong
+                >
+                <q-icon
+                  :name="follower.verified ? 'bi-moon-stars-fill' : ''"
+                  :class="
+                    follower.verified
+                      ? 'showWhenVerified'
+                      : 'hideWhenNotVerified'
+                  "
+                />
+                <span
+                  class="text-grey-7"
+                  style="
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
+                  "
+                >
+                  @{{ follower.username }}
+                  <br />
+                </span>
+                <br />
+                <br />
+                <br /> </q-item-label></q-item
+          ></q-list>
+        </q-card-section>
+        <div v-if="noFollowers" align="center">
+          No one has followed this account yet.
+        </div>
+        <br />
+
+        <q-separator />
+
+        <q-card-actions align="right">
+          <q-btn
+            flat
+            label="Close"
+            :color="$q.dark.isActive ? 'secondary' : 'primary'"
+            v-close-popup
+            @click="followers = []"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -596,7 +865,7 @@ import {
 } from "firebase/database";
 import {
   getDocs,
-  query as fsQuery,
+  query as pFsQuery,
   getDoc,
   addDoc,
   setDoc,
@@ -604,6 +873,7 @@ import {
   updateDoc,
   collection,
   onSnapshot,
+  deleteField,
   limit,
   where,
   orderBy,
@@ -628,7 +898,7 @@ export default defineComponent({
       newName: "",
       bio: "",
       newBio: "",
-      tab: ref("posts"),
+      tab: ref("ownPosts"),
       image:
         "https://as2.ftcdn.net/v2/jpg/03/31/69/91/1000_F_331699188_lRpvqxO5QRtwOM05gR50ImaaJgBx68vi.jpg",
       myImage:
@@ -656,11 +926,22 @@ export default defineComponent({
       theyFollowed: false,
       receiverList: false,
       chatIDList: [],
-      posts: [],
+      profilePosts: [],
       likedPosts: [],
       senderList: false,
       admin: false,
       banned: false,
+      likePrompt: false,
+      selectedPost: {},
+      likers: [],
+      noLikes: true,
+      noFollowers: true,
+      noFollowing: true,
+      followers: [],
+      followings: [],
+      followerPrompt: false,
+      followingPrompt: false,
+      selectedUser: {},
     };
   },
   setup() {
@@ -708,6 +989,121 @@ export default defineComponent({
     return { confirm, deletePost, confirmReport };
   },
   methods: {
+    handleRedirectFollowing(follower) {
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${follower.id}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.$router.push("/profile/" + snapshot.val().username);
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    selectedFollowing() {
+      if (this.selectedUser.following !== undefined) {
+        this.noFollowing = true;
+      }
+      const following = Object.keys(this.selectedUser.following);
+      console.log(following);
+      following.forEach((followingID) => {
+        const dbReff = dbRef(getDatabase());
+        get(child(dbReff, `users/${followingID}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              let following = snapshot.val();
+              following.id = snapshot.key;
+              this.followings.push(following);
+              console.log(toRaw(this.followings));
+              this.noFollowing = false;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      });
+    },
+    handleRedirectFollower(follower) {
+      console.log(follower);
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${liker.id}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.$router.push("/profile/" + snapshot.val().username);
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    selectedFollowers() {
+      if (this.selectedUser.followers !== undefined) {
+        this.noFollowers = true;
+      }
+      const followers = Object.keys(this.selectedUser.followers);
+      followers.forEach((followerID) => {
+        const dbReff = dbRef(getDatabase());
+        get(child(dbReff, `users/${followerID}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              let followers = snapshot.val();
+              followers.id = snapshot.key;
+              this.followers.push(followers);
+              this.noFollowers = false;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      });
+    },
+    handleRedirectLikes(liker) {
+      console.log(liker);
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${liker.id}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            this.$router.push("/profile/" + snapshot.val().username);
+          } else {
+            console.log("No data available");
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    selectedLikes() {
+      if (this.selectedPost.whoLiked !== undefined) {
+        this.noLikes = true;
+      }
+      const likes = Object.keys(this.selectedPost.whoLiked);
+      likes.forEach((likerID) => {
+        const dbReff = dbRef(getDatabase());
+        get(child(dbReff, `users/${likerID}`))
+          .then((snapshot) => {
+            if (snapshot.exists()) {
+              let likers = snapshot.val();
+              likers.id = snapshot.key;
+              this.likers.push(likers);
+              this.noLikes = false;
+            } else {
+              console.log("No data available");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      });
+    },
     followFromPost(post) {
       const followerID = auth.currentUser.uid;
 
@@ -791,9 +1187,8 @@ export default defineComponent({
     },
     async getFollowed(post) {
       const myID = auth.currentUser.uid;
-      let vm = this;
       const db2 = getDatabase();
-      const q2 = query(
+      const qProfile = query(
         dbRef(db2, "users"),
         orderByChild("username"),
         equalTo(post.creatorUsername)
@@ -866,7 +1261,7 @@ export default defineComponent({
       const IDs2 = [this.userID, myID];
 
       const participantList = await getDocs(
-        fsQuery(collection(db, "chats"), where("participants", "==", IDs))
+        pFsQuery(collection(db, "chats"), where("participants", "==", IDs))
       );
 
       if (!participantList.empty) {
@@ -876,7 +1271,7 @@ export default defineComponent({
         });
       } else {
         const theirList = await getDocs(
-          fsQuery(collection(db, "chats"), where("participants", "==", IDs2))
+          pFsQuery(collection(db, "chats"), where("participants", "==", IDs2))
         );
         if (!theirList.empty) {
           theirList.forEach(async (theirs) => {
@@ -901,56 +1296,56 @@ export default defineComponent({
     pickFile() {
       this.$refs.fileInput.click();
     },
-    getPosts() {
+    getOwnPosts() {
       const myID = auth.currentUser.uid;
 
       const username = window.location.href.split("profile/")[1];
 
-      const db2 = getDatabase();
-      const q2 = query(
-        dbRef(db2, "users"),
+      const dbProfile = getDatabase();
+      const qProfile = query(
+        dbRef(dbProfile, "users"),
         orderByChild("username"),
         equalTo(username)
       );
-      get(q2).then((snapshot) => {
-        if (snapshot.exists()) {
-          const key = Object.keys(snapshot.val())[0];
+      get(qProfile).then((profileOwnSS) => {
+        if (profileOwnSS.exists()) {
+          const key = Object.keys(profileOwnSS.val())[0];
           const dbReff = dbRef(getDatabase());
-          const q = fsQuery(
+          const ownQ = pFsQuery(
             collection(db, "posts"),
             where("creatorId", "==", this.userID),
             orderBy("date")
           );
-          const unsubscribe = onSnapshot(q, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-              let postChange = change.doc.data();
-              postChange.id = change.doc.id;
-              this.postID = postChange.id;
-              this.creatorID = postChange.creatorId;
+          const unsubscribe = onSnapshot(ownQ, (postSS) => {
+            postSS.docChanges().forEach((profileChange) => {
+              let ownPosts = profileChange.doc.data();
+              ownPosts.id = profileChange.doc.id;
+              this.postID = ownPosts.id;
+              this.creatorID = ownPosts.creatorId;
 
-              if (change.type === "added") {
-                this.creatorUsername = postChange.creatorUsername;
-                this.creatorDisplayname = postChange.creatorDisplayname;
-                this.creatorImage = postChange.creatorImage;
-                this.creatorVerified = postChange.isUserVerified;
-                this.postImage = postChange.postImg;
-                this.postLikes = postChange.likes;
-                this.postID = postChange.id;
-                this.creatorID = postChange.creatorId;
-                this.posts.unshift(postChange);
+              if (profileChange.type === "added") {
+                this.creatorUsername = ownPosts.creatorUsername;
+                this.creatorDisplayname = ownPosts.creatorDisplayname;
+                this.creatorImage = ownPosts.creatorImage;
+                this.creatorVerified = ownPosts.isUserVerified;
+                this.postImage = ownPosts.postImg;
+                this.postLikes = ownPosts.likes;
+                this.postID = ownPosts.id;
+                this.creatorID = ownPosts.creatorId;
+                this.profilePosts.unshift(ownPosts);
               }
 
-              if (change.type === "modified") {
-                let index = this.posts.findIndex(
-                  (post) => post.id === postChange.id
+              if (profileChange.type === "modified") {
+                let index = this.profilePosts.findIndex(
+                  (post) => post.id === ownPosts.id
                 );
-                Object.assign(this.posts[index], postChange);
+                Object.assign(this.profilePosts[index], ownPosts);
               }
-              if (change.type === "removed") {
-                let index = this.posts.findIndex(
-                  (post) => post.id === postChange.id
+              if (profileChange.type === "removed") {
+                let index = this.profilePosts.findIndex(
+                  (post) => post.id === ownPosts.id
                 );
-                this.posts.splice(index, 1);
+                this.profilePosts.splice(index, 1);
               }
             });
           });
@@ -985,48 +1380,48 @@ export default defineComponent({
 
       const username = window.location.href.split("profile/")[1];
 
-      const db2 = getDatabase();
-      const q2 = query(
-        dbRef(db2, "users"),
+      const dbProfile = getDatabase();
+      const qProfile = query(
+        dbRef(dbProfile, "users"),
         orderByChild("username"),
         equalTo(username)
       );
-      get(q2).then((snapshot) => {
-        if (snapshot.exists()) {
-          const key = Object.keys(snapshot.val())[0];
+      get(qProfile).then((profileLikedSS) => {
+        if (profileLikedSS.exists()) {
+          const key = Object.keys(profileLikedSS.val())[0];
           const dbReff = dbRef(getDatabase());
-          const q = fsQuery(
+          const likedQ = pFsQuery(
             collection(db, "posts"),
             orderBy(`whoLiked.${key}.dateLiked`)
           );
-          const unsubscribe = onSnapshot(q, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-              let postChange = change.doc.data();
-              postChange.id = change.doc.id;
-              this.postID = postChange.id;
-              this.creatorID = postChange.creatorId;
+          const unsubscribe = onSnapshot(likedQ, (profileLiked) => {
+            profileLiked.docChanges().forEach((likedChange) => {
+              let likedPostChange = likedChange.doc.data();
+              likedPostChange.id = likedChange.doc.id;
+              this.postID = likedPostChange.id;
+              this.creatorID = likedPostChange.creatorId;
 
-              if (change.type === "added") {
-                this.creatorUsername = postChange.creatorUsername;
-                this.creatorDisplayname = postChange.creatorDisplayname;
-                this.creatorImage = postChange.creatorImage;
-                this.creatorVerified = postChange.isUserVerified;
-                this.postImage = postChange.postImg;
-                this.postLikes = postChange.likes;
-                this.postID = postChange.id;
-                this.creatorID = postChange.creatorId;
-                this.likedPosts.unshift(postChange);
+              if (likedChange.type === "added") {
+                this.creatorUsername = likedPostChange.creatorUsername;
+                this.creatorDisplayname = likedPostChange.creatorDisplayname;
+                this.creatorImage = likedPostChange.creatorImage;
+                this.creatorVerified = likedPostChange.isUserVerified;
+                this.postImage = likedPostChange.postImg;
+                this.postLikes = likedPostChange.likes;
+                this.postID = likedPostChange.id;
+                this.creatorID = likedPostChange.creatorId;
+                this.likedPosts.unshift(likedPostChange);
               }
 
-              if (change.type === "modified") {
+              if (likedChange.type === "modified") {
                 let index = this.likedPosts.findIndex(
-                  (post) => post.id === postChange.id
+                  (post) => post.id === likedPostChange.id
                 );
-                Object.assign(this.likedPosts[index], postChange);
+                Object.assign(this.likedPosts[index], likedPostChange);
               }
-              if (change.type === "removed") {
+              if (likedChange.type === "removed") {
                 let index = this.likedPosts.findIndex(
-                  (post) => post.id === postChange.id
+                  (post) => post.id === likedPostChange.id
                 );
                 this.likedPosts.splice(index, 1);
               }
@@ -1060,9 +1455,9 @@ export default defineComponent({
 
       const username = window.location.href.split("profile/")[1];
 
-      const db2 = getDatabase();
+      const dbProfile = getDatabase();
       const q = query(
-        dbRef(db2, "users"),
+        dbRef(dbProfile, "users"),
         orderByChild("username"),
         equalTo(username)
       );
@@ -1144,7 +1539,7 @@ export default defineComponent({
 
       const username = window.location.href.split("profile/")[1];
 
-      const db2 = getDatabase();
+      const dbProfile = getDatabase();
       const q = query(
         dbRef(db2, "users"),
         orderByChild("username"),
@@ -1314,6 +1709,7 @@ export default defineComponent({
               let theUser = snapshotUser.val();
               theUser.id = snapshotUser.key;
               this.users.push(theUser);
+              this.selectedUser = theUser;
 
               this.currUsername = snapshotUser.val().username;
               this.profileName = snapshotUser.val().displayName;
@@ -1350,7 +1746,7 @@ export default defineComponent({
       }
     });
 
-    this.getPosts();
+    this.getOwnPosts();
     this.getLikedPosts();
   },
 });
@@ -1362,16 +1758,26 @@ export default defineComponent({
   top: 0;
 }
 
+.postImage {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 300px;
+  margin-bottom: 15px;
+  padding-right: 35px;
+  margin-top: 10px;
+  display: flex;
+}
 .post-icons {
   align-items: center;
   padding: 0;
-  .postLikes {
-    display: flex;
-    position: absolute;
-    font-size: 16px;
-    color: grey;
-    margin-left: 60px;
-  }
+}
+.postLikes {
+  display: flex;
+  position: absolute;
+  font-size: 16px;
+  color: grey;
+  right: 35%;
 }
 .post-content {
   white-space: pre-line;
@@ -1455,6 +1861,13 @@ export default defineComponent({
   background-color: $grey-11;
 }
 .postavatar {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  cursor: pointer;
+  object-fit: cover;
+}
+.homePostAvatar {
   width: 50px;
   height: 50px;
   display: flex;

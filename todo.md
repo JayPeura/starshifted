@@ -18,6 +18,11 @@
 - [DONE] open pictures as larger versions in a modal/dialog
 - [DONE] change how time is displayed in post page to "7:02 am/pm - Dec 16 2022" and move it to the bottom of the post
 - [DONE] forgot password to login
+- [DONE] change the comment structure so comments are posts that are under the certain post/comment
+- [DONE] change password & email in settings
+- [DONE] show post's liker list in a scrollable dialog when the number of likes is clicked
+- [DONE] [BUG] profile page allows images to be very large
+- [DONE] show followers and followings list in a scrollable dialog
 
 # WIP ITEMS
 
@@ -29,7 +34,9 @@
 - [WIP] Trending topics
 - [WIP] Tagging users
 - [WIP] enable custom colours in feed to personalize it
-- [WIP] show followers list in a scrollable dialog
-- [WIP] show post's liker list in a scrollable dialog when the number of likes is clicked
 - [WIP] show only followings' posts in home page until trending topics have been implemented
-- [WIP] change password & email in settings
+- [WIP] add functionality to home page search
+
+# BUGS
+
+- [BUG] fix so the posts don't jump to the bottom when changing from profile page to home page after user refreshed on profile page
