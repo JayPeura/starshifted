@@ -51,10 +51,3 @@
 
 - [BUG] sometimes a post gets visually posted multiple times, but doesn't happen in the database
 
-# BETA TESTERS
-
-Maarten
-Trubl
-Digi
-Henri
-Tezz?
