@@ -23,20 +23,38 @@
 - [DONE] show post's liker list in a scrollable dialog when the number of likes is clicked
 - [DONE] [BUG] profile page allows images to be very large
 - [DONE] show followers and followings list in a scrollable dialog
+- [DONE] add links to offensive posts in reports
+- [DONE] nsfw filter toggle -> blur on pics
+- [DONE] Topics (hashtags on Twitter)
+- [DONE] reposting
+- [DONE] Trending topics
+- [DONE] notifications functionality
+- [DONE] show only followings' posts in home page until trending topics have been implemented
+- [DONE] programmatically enable different widths and margins for q-drawers
+- [DONE] [BUG] images open multiple times when clicked
+- [DONE?] [BUG] fix so the posts don't jump to the bottom when changing from profile page to home page after user refreshed on profile page
+- [DONE] show trending posts only if the user is new
+- [DONE] [BUG] fixed the menu overlapping with the content when the margins are being adjusted
+- [DONE] fix stylings :D
+- [DONE] profile picture cropping 
 
 # WIP ITEMS
 
-- [WIP] nsfw filter toggle -> blur on pics
+- [WIP] implement the rest of the reposting functionality ProfilePage, HashtagPage, PostPage...
+- [WIP] [90%] enable custom colours in feed to personalize it
 - [WIP] image upload in private messages
-- [WIP] deleted people's posts should be deleted completely instead of the (deleted)
-- [WIP] reposting
-- [WIP] Topics (hashtags on Twitter)
-- [WIP] Trending topics
+- [WIP] deleted people's posts should be deleted completely instead of the (deleted) [?]
 - [WIP] Tagging users
-- [WIP] enable custom colours in feed to personalize it
-- [WIP] show only followings' posts in home page until trending topics have been implemented
 - [WIP] add functionality to home page search
 
 # BUGS
 
-- [BUG] fix so the posts don't jump to the bottom when changing from profile page to home page after user refreshed on profile page
+- [BUG] sometimes a post gets visually posted multiple times, but doesn't happen in the database
+
+# BETA TESTERS
+
+Maarten
+Trubl
+Digi
+Henri
+Tezz?

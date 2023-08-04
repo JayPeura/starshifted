@@ -30,7 +30,7 @@
       </div>
       <div class="full-width">
         <q-list
-          v-for="user in users"
+          v-for="user in searchedUsers"
           :key="user.id"
           :bordered="user.id !== myID"
           class="q-mb-sm q-mt-sm"
@@ -51,7 +51,7 @@
               <q-item-label
                 >{{ user.value.displayName }}
                 <q-icon
-                  :name="user.value.verified ? 'verified' : ''"
+                  :name="user.value.verified ? 'bi-moon-stars-fill' : ''"
                   :class="
                     user.value.verified
                       ? 'showWhenVerified'
@@ -155,7 +155,21 @@ const searchUsersRef = ref("");
 
 export default {
   name: "MessagesPage",
-
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.chats = [];
+      vm.users = [];
+      vm.getChats();
+      vm.getAllUsers();
+    });
+  },
+  beforeRouteUpdate(to, from, next) {
+    this.chats = [];
+    this.users = [];
+    this.getChats();
+    this.getAllUsers();
+    next();
+  },
   data() {
     return {
       receiverVerified: false,
@@ -172,7 +186,8 @@ export default {
       myVerified: false,
       userID: "",
       myID: auth.currentUser.uid,
-      users: [],
+      allUsers: [],
+      searchedUsers: [],
       chats: [],
       myMessages: [],
       messageContent: "",
@@ -207,11 +222,11 @@ export default {
     },
     checkVerifiedName(chat) {
       if (chat.theyVerified && this.theyVerified) {
-        return "verified";
+        return "bi-moon-stars-fill";
       } else if (chat.myVerified && this.theyVerified) {
-        return "verified";
+        return "bi-moon-stars-fill";
       } else if (chat.myVerified && chat.theyVerified) {
-        return "verified";
+        return "bi-moon-stars-fill";
       } else if (!chat.myVerified) {
         return "";
       } else if (!chat.myVerified && !this.myVerified) {
@@ -223,28 +238,16 @@ export default {
       }
     },
     async handleSearch(value) {
-      const db2 = getDatabase();
-
       if (this.searchUsers === "") {
-        this.users = [];
+        this.searchedUsers = [];
         return;
       } else {
-        const userQ = dbQuery(
-          dbRef(db2, "users"),
-          orderByChild("username"),
-          equalTo(value)
-        );
-        get(userQ).then((snapshot) => {
-          if (snapshot.exists()) {
-            const key = snapshot.key;
-            const data = snapshot.val();
-
-            this.users = Object.entries(data, key).map(([id, value]) => ({
-              id,
-              value,
-            }));
-          }
+        const results = Object.values(this.users).filter((user) => {
+          return user.value.username
+            .toLowerCase()
+            .startsWith(this.searchUsers.toLowerCase());
         });
+        this.searchedUsers = results;
       }
     },
     async handleRedirect(user) {
@@ -285,6 +288,21 @@ export default {
           });
         }
       }
+    },
+    getAllUsers() {
+      const db2 = getDatabase();
+
+      const userQ = dbQuery(dbRef(db2, "users"), orderByChild("username"));
+      get(userQ).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = snapshot.key;
+          const data = snapshot.val();
+          this.users = Object.entries(data, key).map(([id, value]) => ({
+            id,
+            value,
+          }));
+        }
+      });
     },
     handleChat(chat) {
       this.$router.push("/messages/" + chat.id);
@@ -371,7 +389,6 @@ export default {
           console.error(error);
         });
     });
-    this.getChats();
   },
 };
 </script>

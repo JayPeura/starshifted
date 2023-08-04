@@ -227,6 +227,18 @@ const scrollPage = ref();
 
 export default {
   name: "MessageView",
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.messages = [];
+      vm.chatID = vm.$route.params.chatID;
+      vm.getMessages();
+    });
+  },
+  beforeRouteUpdate(to, from, next) {
+    this.messages = [];
+    this.chatID = this.$route.params.chatID;
+    this.getMessages();
+  },
   data() {
     return {
       areThereMessages: false,
@@ -343,7 +355,6 @@ export default {
     },
   },
   async mounted() {
-    this.chatID = this.$route.params.chatID;
     const myID = auth.currentUser.uid;
 
     const id = this.$route.params.chatID;

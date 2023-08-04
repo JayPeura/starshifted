@@ -1,6 +1,14 @@
 <template>
   <q-page class="relative-position">
-    <q-scroll-area class="absolute full-width full-height">
+    <q-scroll-area
+      class="absolute full-width full-height"
+      :style="
+        'background-color: ' +
+        getThemeColour(theme.value).mild +
+        '; color: ' +
+        getThemeColour(theme.value).txt
+      "
+    >
       <div v-if="!postDeleted">
         <div v-for="post in posts" :key="post.id">
           <div v-if="post.underPostID !== undefined">
@@ -8,6 +16,12 @@
               v-for="prevPost in previousPosts"
               :key="prevPost.id"
               class="q-py-md"
+              :style="
+                'background-color: ' +
+                getThemeColour(theme.value).mild +
+                '; color: ' +
+                getThemeColour(theme.value).txt
+              "
             >
               <q-item-section avatar top>
                 <label for="actual-btn" class="clickableLabel">
@@ -48,7 +62,18 @@
                 </q-item-label>
                 <q-item-label class="post-content text-body1">
                   <span v-html="linkifyText(prevPost)"></span>
-                  <img :src="prevPost.postImg" class="postImage" />
+                  <img
+                    v-if="prevPost.NSFW"
+                    @click="openDialog(prevPost)"
+                    :src="prevPost.postImg"
+                    class="postImage blur"
+                  />
+                  <img
+                    v-else
+                    @click="openDialog(prevPost)"
+                    :src="prevPost.postImg"
+                    class="postImage"
+                  />
                 </q-item-label>
                 <span class="text-grey-7 q-mt-md">
                   {{ format(prevPost.date, "p - PPP") }}</span
@@ -170,7 +195,15 @@
             </q-item>
           </div>
           <!-- End of "quoted" post -->
-          <q-item class="q-py-md">
+          <q-item
+            class="q-py-md"
+            :style="
+              'background-color: ' +
+              getThemeColour(theme.value).mild +
+              '; color: ' +
+              getThemeColour(theme.value).txt
+            "
+          >
             <q-item-section avatar top>
               <label for="actual-btn" class="clickableLabel">
                 <q-avatar round size="xl">
@@ -208,7 +241,126 @@
               </q-item-label>
               <q-item-label class="post-content text-body1">
                 <span v-html="linkifyText(post)"></span>
-                <img :src="post.postImg" class="postImage" />
+                <img
+                  v-if="post.NSFW"
+                  @click="openDialog(post)"
+                  :src="post.postImg"
+                  class="postImage blur"
+                />
+                <img
+                  v-else
+                  @click="openDialog(post)"
+                  :src="post.postImg"
+                  class="postImage"
+                />
+                <div v-for="repost in repostedPosts" :key="repost.id">
+                  <q-item
+                    v-if="
+                      post.repostID !== undefined &&
+                      repost.id === post.repostID &&
+                      !repost.deleted
+                    "
+                    style="
+                      border: 1px solid grey;
+                      border-radius: 5px;
+                      padding: 15px;
+                      margin-top: 10px;
+                      margin-right: 20px;
+                    "
+                    clickable
+                    :to="'/post/' + post.repostID"
+                  >
+                    <q-item-section avatar top>
+                      <label
+                        for="actual-btn"
+                        class="clickableLabel"
+                        @click="handleRedirect(repost)"
+                      >
+                        <q-avatar round size="lg">
+                          <q-img
+                            v-bind:src="repost.creatorImage"
+                            class="homeRepostAvatar"
+                          /> </q-avatar
+                      ></label>
+
+                      <button id="actual-btn" hidden></button>
+                    </q-item-section>
+                    <q-item-label class="text-subtitle1"
+                      ><strong
+                        @click="handleRedirect(repost)"
+                        class="clickableLabel"
+                        :style="'color: ' + getThemeColour(theme.value).txt"
+                        >{{ repost.creatorDisplayname }}</strong
+                      >
+                      <q-icon
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
+                        :style="'color: ' + getThemeColour(theme.value).txt"
+                        :class="
+                          repost.isUserVerified
+                            ? 'showWhenVerified'
+                            : 'hideWhenNotVerified'
+                        "
+                      />
+                      <span
+                        class="text-grey-7"
+                        style="
+                          text-overflow: ellipsis;
+                          white-space: nowrap;
+                          overflow: hidden;
+                        "
+                      >
+                        @{{ repost.creatorUsername }}
+                        ─
+                      </span>
+                      <span class="text-grey-7">
+                        {{
+                          repost.date > Date.now() - 35 * 60 * 60 * 1000
+                            ? formatDistanceStrict(repost.date, new Date())
+                            : format(repost.date, "d MMM")
+                        }}</span
+                      >
+                      <span
+                        v-if="repost.NSFW"
+                        style="color: red; margin-left: 5px"
+                        >NSFW</span
+                      >
+                      <q-item-label class="homePostContent text-body2">
+                        <span
+                          v-html="linkifyText(repost)"
+                          :style="
+                            'background-color: ' +
+                            getThemeColour(theme.value).mild +
+                            '; color: ' +
+                            getThemeColour(theme.value).txt
+                          "
+                        ></span>
+                        <img
+                          v-if="repost.NSFW"
+                          @click="
+                            imageShower = true;
+                            openImage = repost.postImg;
+                          "
+                          :src="repost.postImg"
+                          class="postImage blur"
+                        />
+                        <img
+                          v-else
+                          @click="
+                            imageShower = true;
+                            openImage = repost.postImg;
+                          "
+                          :src="repost.postImg"
+                          class="postImage"
+                        />
+                      </q-item-label>
+                    </q-item-label>
+                  </q-item>
+                  <q-item
+                    v-if="repost.deleted && repost.id === post.repostID"
+                    style="border: 2px solid grey; padding: 15px; color: red"
+                    >DELETED POST</q-item
+                  >
+                </div>
               </q-item-label>
               <span class="text-grey-7 q-mt-md">
                 {{ format(post.date, "p - PPP") }}</span
@@ -322,7 +474,12 @@
       </div>
       <q-separator
         size="10px"
-        :color="$q.dark.isActive ? 'grey-10' : 'grey-4'"
+        :style="
+          'background-color: ' +
+          getThemeColour(theme.value).mild +
+          '; color: ' +
+          getThemeColour(theme.value).txt
+        "
         class="divider"
       />
       <div class="q-py-lg q-px-md row items-end q-col-gutter-md">
@@ -397,7 +554,17 @@
           enter-active-class="animated fadeIn slow"
           leave-active-class="animated fadeOut slow"
         >
-          <q-item v-for="comment in comments" :key="comment.id" class="q-py-md">
+          <q-item
+            v-for="comment in comments"
+            :key="comment.id"
+            class="q-py-md"
+            :style="
+              'background-color: ' +
+              getThemeColour(theme.value).mild +
+              '; color: ' +
+              getThemeColour(theme.value).txt
+            "
+          >
             <q-item-section avatar top>
               <q-avatar round size="xl">
                 <q-img v-bind:src="comment.creatorImage" class="postavatar" />
@@ -655,6 +822,25 @@ const imageUrlRef = ref("");
 
 export default defineComponent({
   name: "HomePage",
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.posts = [];
+      vm.comments = [];
+      vm.previousPosts = [];
+      vm.myComments = [];
+      vm.getProfileInfo();
+      vm.getThePost();
+    });
+  },
+  beforeRouteUpdate(to, from, next) {
+    this.posts = [];
+    this.comments = [];
+    this.previousPosts = [];
+    this.myComments = [];
+    this.getProfileInfo();
+    this.getThePost();
+    next();
+  },
   data() {
     return {
       newStarshiftingPost: "",
@@ -696,6 +882,16 @@ export default defineComponent({
       selectedPost: {},
       likers: [],
       noLikes: true,
+      theme: "",
+      repostPrompt: false,
+      repostPost: "",
+      repostImageUrl: "",
+      repostImage: null,
+      imageRepostShow: false,
+      repostedPosts: [],
+      repostID: [],
+      suggestedHashtags: [],
+      showSuggestedHashtags: false,
     };
   },
   setup() {
@@ -802,6 +998,10 @@ export default defineComponent({
     };
   },
   methods: {
+    openDialog(post) {
+      post.openImage = post.postImg;
+      post.imageShower = true;
+    },
     handleRedirectLikes(liker) {
       console.log(liker);
       const dbReff = dbRef(getDatabase());
@@ -1068,10 +1268,17 @@ export default defineComponent({
         pattern2,
         '$1<a href="http://$2" target="_blank">$2</a>'
       );
+
+      const pattern3 = /#(\w+)/g;
+      text = text.replace(
+        pattern3,
+        '<a class="hashtag" href="/#/topic/$1">#$1</a>'
+      );
+
       return sanitizeHtml(text, {
         allowedTags: ["b", "i", "em", "strong", "a"],
         allowedAttributes: {
-          a: ["href"],
+          a: ["href", "class"],
         },
         allowedIframeHostnames: ["www.youtube.com"],
       });
@@ -1184,9 +1391,112 @@ export default defineComponent({
         console.log("Toodaloo");
       }
     },
-  },
-  async mounted() {
-    if (this.postID) {
+    async getPosts() {
+      const q = query(collection(db, `posts`), orderBy("date"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach(async (change) => {
+          if (change.doc.data() !== undefined) {
+            let commentChange = change.doc.data();
+            commentChange.id = change.doc.id;
+            if (commentChange.underPostID === this.postID) {
+              if (change.type === "added") {
+                this.creatorUsername = commentChange.creatorUsername;
+                this.creatorDisplayname = commentChange.creatorDisplayname;
+                this.creatorID = commentChange.creatorId;
+                this.commentID = commentChange.id;
+                this.commentLikes = commentChange.likes;
+                this.commentLiked = commentChange.isLiked;
+                this.commentID = commentChange.id;
+                if (commentChange.isUserVerified === undefined) {
+                  this.userVerified = false;
+                } else {
+                  this.userVerified = commentChange.isUserVerified;
+                }
+                this.myComments.unshift(commentChange.id);
+                this.comments.unshift(commentChange);
+
+                if (commentChange.creatorId === this.creatorID) {
+                  const joinedArray = this.myComments.join(" ");
+                  const array = joinedArray.split(" ");
+                  const filteredArray = array.find(
+                    (item) => item === commentChange.id
+                  );
+                  const usernameRef = dbRef(
+                    database,
+                    "users/" + commentChange.creatorId
+                  );
+                  onValue(usernameRef, (snapshot) => {
+                    if (snapshot.val() !== null) {
+                      const data = snapshot.val();
+                      this.userVerified = data.verified;
+                      this.currUsername = data.username;
+                      this.currName = data.displayName;
+                      if (data.verified === undefined) {
+                        this.userVerified = false;
+                      } else if (data.verified !== undefined) {
+                        this.userVerified = data.verified;
+                      }
+
+                      const replaceInfo = doc(db, "posts", filteredArray);
+
+                      const newInfo = {
+                        creatorUsername: data.username,
+                        creatorDisplayname: data.displayName,
+                        creatorImage: data.image,
+                        isUserVerified: this.userVerified,
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    } else if (snapshot.val() === null) {
+                      this.creatorUsername = "";
+                      this.creatorDisplayname = "Deleted User";
+                      this.creatorImage = this.defaultImage;
+                      this.creatorVerified = false;
+
+                      const replaceInfo = doc(db, "posts", filteredArray);
+                      const newInfo = {
+                        creatorUsername: "",
+                        creatorDisplayname: "Deleted User",
+                        isUserVerified: false,
+                        creatorImage: this.defaultImage,
+                        content: "(deleted)",
+                      };
+                      updateDoc(replaceInfo, newInfo);
+                    }
+                  });
+                  const docRef2 = doc(db, `posts`, filteredArray);
+                  const docSnap2 = await getDoc(docRef2);
+
+                  const docSnapData = docSnap2.data();
+
+                  if (this.creatorID === auth.currentUser.uid && this.postID) {
+                    const replaceInfo = doc(db, "posts", filteredArray);
+                    const newInfo = {
+                      creatorUsername: this.currUsername,
+                      creatorDisplayname: this.currName,
+                    };
+                    updateDoc(replaceInfo, newInfo);
+                  }
+                }
+              }
+              if (change.type === "modified") {
+                let index = this.comments.findIndex(
+                  (comment) => comment.id === commentChange.id
+                );
+                Object.assign(this.comments[index], commentChange);
+              }
+              if (change.type === "removed") {
+                let index = this.comments.findIndex(
+                  (comment) => comment.id === commentChange.id
+                );
+                this.comments.splice(index, 1);
+              }
+            }
+          }
+        });
+      });
+    },
+    async getThePost() {
+      const postID = window.location.href.split("post/")[1];
       const postsInUserRef = collection(db, `posts`);
 
       const q = query(postsInUserRef, orderBy("createdAt"));
@@ -1196,169 +1506,97 @@ export default defineComponent({
       postsInUserSnapshot.docs.map((d) => {
         arr.push(d.data());
       });
-    }
-    const unsub = onSnapshot(doc(db, "posts", this.postID), (poster) => {
-      if (poster.exists()) {
-        let post = poster.data();
-        post.id = poster.id;
 
-        this.posts = { post: post };
+      const unsub = onSnapshot(doc(db, "posts", postID), (poster) => {
+        if (poster.exists()) {
+          let post = poster.data();
+          post.id = poster.id;
 
-        if (post.underPostID !== undefined) {
-          const newSub = onSnapshot(
-            doc(db, "posts", post.underPostID),
-            (prevPoster) => {
-              if (prevPoster.exists()) {
-                let prevPost = prevPoster.data();
-                prevPost.id = prevPoster.id;
+          this.posts = { post: post };
 
-                this.previousPosts = { post: prevPost };
-              }
-            }
-          );
-        }
-        if (post.content === "" && post.postImg === undefined) {
-          this.postDeleted = true;
-        } else {
-          this.postDeleted = false;
-        }
-      } else {
-        this.postDeleted = true;
-        return;
-      }
-    });
+          if (post.repostID !== undefined) {
+            const newSub = onSnapshot(
+              doc(db, "posts", post.repostID),
+              (prevPoster) => {
+                if (prevPoster.exists()) {
+                  let prevPost = prevPoster.data();
+                  prevPost.id = prevPoster.id;
 
-    const q = query(collection(db, `posts`), orderBy("date"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
-        if (change.doc.data() !== undefined) {
-          let commentChange = change.doc.data();
-          commentChange.id = change.doc.id;
-          if (commentChange.underPostID === this.postID) {
-            if (change.type === "added") {
-              this.creatorUsername = commentChange.creatorUsername;
-              this.creatorDisplayname = commentChange.creatorDisplayname;
-              this.creatorID = commentChange.creatorId;
-              this.commentID = commentChange.id;
-              this.commentLikes = commentChange.likes;
-              this.commentLiked = commentChange.isLiked;
-              this.commentID = commentChange.id;
-              if (commentChange.isUserVerified === undefined) {
-                this.userVerified = false;
-              } else {
-                this.userVerified = commentChange.isUserVerified;
-              }
-              this.myComments.unshift(commentChange.id);
-              this.comments.unshift(commentChange);
-              if (commentChange.creatorId === this.creatorID) {
-                const joinedArray = this.myComments.join(" ");
-                const array = joinedArray.split(" ");
-                const filteredArray = array.find(
-                  (item) => item === commentChange.id
-                );
-                const usernameRef = dbRef(
-                  database,
-                  "users/" + commentChange.creatorId
-                );
-                onValue(usernameRef, (snapshot) => {
-                  if (snapshot.val() !== null) {
-                    const data = snapshot.val();
-                    this.userVerified = data.verified;
-                    this.currUsername = data.username;
-                    this.currName = data.displayName;
-                    if (data.verified === undefined) {
-                      this.userVerified = false;
-                    } else if (data.verified !== undefined) {
-                      this.userVerified = data.verified;
-                    }
+                  const existingPostIndex = this.repostedPosts.findIndex(
+                    (post) => post.id === post.repostID
+                  );
 
-                    const replaceInfo = doc(db, "posts", filteredArray);
-
-                    const newInfo = {
-                      creatorUsername: data.username,
-                      creatorDisplayname: data.displayName,
-                      creatorImage: data.image,
-                      isUserVerified: this.userVerified,
-                    };
-                    updateDoc(replaceInfo, newInfo);
-                  } else if (snapshot.val() === null) {
-                    this.creatorUsername = "";
-                    this.creatorDisplayname = "Deleted User";
-                    this.creatorImage = this.defaultImage;
-                    this.creatorVerified = false;
-
-                    const replaceInfo = doc(db, "posts", filteredArray);
-                    const newInfo = {
-                      creatorUsername: "",
-                      creatorDisplayname: "Deleted User",
-                      isUserVerified: false,
-                      creatorImage: this.defaultImage,
-                      content: "(deleted)",
-                    };
-                    updateDoc(replaceInfo, newInfo);
+                  if (existingPostIndex === -1) {
+                    this.repostedPosts.push(prevPost);
                   }
-                });
-                const docRef2 = doc(db, `posts`, filteredArray);
-                const docSnap2 = await getDoc(docRef2);
+                } else {
+                  const deletedPostIndex = this.repostedPosts.findIndex(
+                    (post) => post.id === post.repostID
+                  );
 
-                const docSnapData = docSnap2.data();
-
-                if (this.creatorID === auth.currentUser.uid && this.postID) {
-                  const replaceInfo = doc(db, "posts", filteredArray);
-                  const newInfo = {
-                    creatorUsername: this.currUsername,
-                    creatorDisplayname: this.currName,
-                  };
-                  updateDoc(replaceInfo, newInfo);
+                  if (deletedPostIndex !== -1) {
+                    this.repostedPosts[deletedPostIndex].deleted = true;
+                  } else {
+                    this.repostedPosts.push({
+                      deleted: true,
+                      id: post.repostID,
+                    });
+                  }
                 }
               }
-            }
-            if (change.type === "modified") {
-              let index = this.comments.findIndex(
-                (comment) => comment.id === commentChange.id
-              );
-              Object.assign(this.comments[index], commentChange);
-            }
-            if (change.type === "removed") {
-              let index = this.comments.findIndex(
-                (comment) => comment.id === commentChange.id
-              );
-              this.comments.splice(index, 1);
-            }
+            );
           }
-        }
-      });
-    });
+          if (post.underPostID !== undefined) {
+            const newSub = onSnapshot(
+              doc(db, "posts", post.underPostID),
+              (prevPoster) => {
+                if (prevPoster.exists()) {
+                  let prevPost = prevPoster.data();
+                  prevPost.id = prevPoster.id;
 
-    const docRef = doc(db, "posts", this.postID);
-    const docSnap = await getDoc(docRef);
-
-    const docSnapData = docSnap.data();
-    if (docSnapData) {
-      this.posterUsername = docSnapData.creatorUsername;
-    }
-
-    const myID = auth.currentUser.uid;
-
-    const dbReff = dbRef(getDatabase());
-    get(child(dbReff, `users/${myID}`))
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          this.myImage = snapshot.val().image;
-          this.admin = snapshot.val().admin;
-          if (snapshot.val().verified === undefined) {
-            this.userVerified = false;
+                  this.previousPosts = { post: prevPost };
+                }
+              }
+            );
+          }
+          if (post.content === "" && post.postImg === undefined) {
+            this.postDeleted = true;
           } else {
-            this.userVerified = snapshot.val().verified;
+            this.postDeleted = false;
           }
         } else {
-          console.log("No data available");
+          this.postDeleted = true;
+          return;
         }
-      })
-      .catch((error) => {
-        console.error(error);
       });
+
+      const docRef = doc(db, "posts", postID);
+      const docSnap = await getDoc(docRef);
+
+      const docSnapData = docSnap.data();
+      if (docSnapData) {
+        this.posterUsername = docSnapData.creatorUsername;
+      }
+      this.getPosts();
+    },
+    getProfileInfo() {
+      const myID = auth.currentUser.uid;
+
+      const dbReff = dbRef(database, "users/" + myID);
+      onValue(dbReff, (snapshot1) => {
+        const info = snapshot1.val();
+        this.myImage = info.image;
+        this.admin = info.admin;
+        this.theme = info.theme;
+        if (info.verified === undefined) {
+          this.userVerified = false;
+        } else {
+          this.userVerified = info.verified;
+        }
+      });
+    },
   },
+  async mounted() {},
 });
 </script>
 
@@ -1464,5 +1702,24 @@ export default defineComponent({
 }
 img[src=""] {
   display: none;
+}
+.hashtag {
+  color: rgb(255, 95, 95);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.isNSFW {
+  color: $grey-8;
+  position: absolute;
+  top: 7px;
+  right: 50px;
+  padding: 4px;
+}
+
+.blur {
+  filter: blur(15px);
 }
 </style>

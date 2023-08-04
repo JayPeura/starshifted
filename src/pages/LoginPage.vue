@@ -289,66 +289,35 @@ export default {
           this.usernameTakenPrompt = true;
           return;
         } else {
-          alert("Register temporarily disabled.");
-          // createUserWithEmailAndPassword(
-          //   auth,
-          //   this.$refs.email.modelValue,
-          //   this.$refs.password.modelValue
-          // )
-          //   .then((userCredential) => {
-          //     // Signed in
-          //     const user = userCredential.user;
-          //     set(dbRef(database, "users/" + user.uid), {
-          //       username: this.$refs.username.modelValue,
-          //       email: this.$refs.email.modelValue,
-          //       displayName: this.$refs.displayname.modelValue,
-          //       status: { banned: false, banReasoning: "" },
-          //       image: this.image,
-          //     })
-          //       .then(() => {
-          //         // Data saved successfully!
-          //         alert("User created successfully!");
-          //         this.username = "";
-          //         this.displayname = "";
-          //         this.password = "";
-          //         this.repassword = "";
-          //         this.switchTypeForm();
-          //       })
-          //       .catch((error) => {
-          //         // The write failed...
-          //         alert(error);
-          //       });
-          //     // ...
-          //   })
-          //   .catch((error) => {
-          //     const errorCode = error.code;
-          //     const errorMessage = error.message;
-          //     alert(errorMessage);
-          //     // ..
-          //   });
-        }
-      } else {
-        this.$refs.email.validate();
-        this.$refs.password.validate();
-        //temporarily disable login if not on localhost
-        if (window.location.href.includes("localhost")) {
-          signInWithEmailAndPassword(
+          // alert("Register temporarily disabled.");
+          createUserWithEmailAndPassword(
             auth,
             this.$refs.email.modelValue,
             this.$refs.password.modelValue
           )
             .then((userCredential) => {
               // Signed in
-              let lgDate = new Date();
               const user = userCredential.user;
-              update(dbRef(database, "users/" + user.uid), {
-                last_login: lgDate,
+              set(dbRef(database, "users/" + user.uid), {
+                username: this.$refs.username.modelValue,
+                email: this.$refs.email.modelValue,
+                displayName: this.$refs.displayname.modelValue,
+                status: { banned: false, banReasoning: "" },
+                image: this.image,
+                theme: {
+                  label: "None (default, need refresh after change)",
+                  value: "",
+                },
+                doYouWantNSFW: false,
               })
                 .then(() => {
                   // Data saved successfully!
-                  this.loggedIn = true;
-                  this.$emit("logged-in", this.loggedIn);
-                  this.$router.push("/");
+                  alert("User created successfully!");
+                  this.username = "";
+                  this.displayname = "";
+                  this.password = "";
+                  this.repassword = "";
+                  this.switchTypeForm();
                 })
                 .catch((error) => {
                   // The write failed...
@@ -360,10 +329,46 @@ export default {
               const errorCode = error.code;
               const errorMessage = error.message;
               alert(errorMessage);
+              // ..
             });
-        } else {
-          alert("Login temporarily disabled.");
         }
+      } else {
+        this.$refs.email.validate();
+        this.$refs.password.validate();
+        //temporarily disable login if not on localhost
+        // if (window.location.href.includes("localhost")) {
+        signInWithEmailAndPassword(
+          auth,
+          this.$refs.email.modelValue,
+          this.$refs.password.modelValue
+        )
+          .then((userCredential) => {
+            // Signed in
+            let lgDate = new Date();
+            const user = userCredential.user;
+            update(dbRef(database, "users/" + user.uid), {
+              last_login: lgDate,
+            })
+              .then(() => {
+                // Data saved successfully!
+                this.loggedIn = true;
+                this.$emit("logged-in", this.loggedIn);
+                this.$router.push("/");
+              })
+              .catch((error) => {
+                // The write failed...
+                alert(error);
+              });
+            // ...
+          })
+          .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            alert(errorMessage);
+          });
+        // } else {
+        //   alert("Login temporarily disabled.");
+        // }
       }
     },
     switchTypeForm() {

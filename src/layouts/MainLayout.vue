@@ -1,7 +1,25 @@
 <template>
   <q-layout view="lHr lpR fff">
-    <q-header bordered class="bg-primary text-white">
-      <q-toolbar>
+    <q-header
+      bordered
+      :style="
+        'background-color: ' +
+        getThemeColour(theme.value).bg +
+        '; color: ' +
+        getThemeColour(theme.value).txt
+      "
+    >
+      <p style="position: absolute; right: 55px; top: 15px">
+        Do you want NSFW?
+      </p>
+      <q-toggle
+        style="position: absolute; right: 0; top: 5px"
+        color="red"
+        keep-color
+        v-model="doYouWantNSFW"
+        @update:model-value="refreshPage()"
+      />
+      <q-toolbar style="width: 80%">
         <div class="leftDrawerBtn">
           <q-btn
             dense
@@ -22,13 +40,18 @@
         </q-toolbar-title>
       </q-toolbar>
     </q-header>
-
     <q-drawer
+      ref="drawer"
       show-if-above
       v-model="leftDrawerOpen"
       side="left"
       bordered
-      :width="323"
+      :width="drawerWidth"
+      :style="{
+        'margin-left': margins,
+        'background-color': getThemeColour(theme.value).mild,
+        color: getThemeColour(theme.value).txt,
+      }"
     >
       <img
         v-if="$q.dark.isActive"
@@ -43,14 +66,14 @@
       <q-badge
         v-if="!admin"
         outline
-        color="blue"
+        color="green"
         align="top"
         style="margin-top: 10px"
-        >ALPHA</q-badge
+        >BETA</q-badge
       >
       <q-badge
         outline
-        color="accent"
+        :color="theme === 'red' ? 'black' : 'accent'"
         align="top"
         v-else
         style="margin-top: 10px"
@@ -58,13 +81,18 @@
       >
 
       <q-list>
-        <q-item to="/" clickable v-ripple exact>
+        <q-item
+          to="/"
+          clickable
+          v-ripple
+          exact
+          :style="{
+            'background-color': getThemeColour(theme.value).mild,
+            color: getThemeColour(theme.value).txt,
+          }"
+        >
           <q-item-section avatar>
-            <q-icon
-              :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              name="home"
-              size="md"
-            />
+            <q-icon name="home" size="md" />
           </q-item-section>
 
           <q-item-section class="text-h6">Home</q-item-section>
@@ -75,19 +103,28 @@
           clickable
           v-ripple
           exact
+          :style="{
+            'background-color': getThemeColour(theme.value).mild,
+            color: getThemeColour(theme.value).txt,
+          }"
         >
           <q-item-section avatar>
-            <q-icon
-              :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              name="person"
-              size="md"
-            />
+            <q-icon name="person" size="md" />
           </q-item-section>
 
           <q-item-section class="text-h6">Profile</q-item-section>
         </q-item>
 
-        <q-item :to="'/notifications'" clickable v-ripple exact>
+        <q-item
+          :to="'/notifications'"
+          clickable
+          v-ripple
+          exact
+          :style="{
+            'background-color': getThemeColour(theme.value).mild,
+            color: getThemeColour(theme.value).txt,
+          }"
+        >
           <q-badge
             v-if="notificationsCount > 0"
             rounded
@@ -97,16 +134,21 @@
           />
 
           <q-item-section avatar>
-            <q-icon
-              :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              name="notifications_none"
-              size="md"
-            />
+            <q-icon name="notifications_none" size="md" />
           </q-item-section>
 
           <q-item-section class="text-h6">Notifications</q-item-section>
         </q-item>
-        <q-item :to="'/messages'" clickable v-ripple exact>
+        <q-item
+          :to="'/messages'"
+          clickable
+          v-ripple
+          exact
+          :style="{
+            'background-color': getThemeColour(theme.value).mild,
+            color: getThemeColour(theme.value).txt,
+          }"
+        >
           <q-badge
             v-if="messagesCount > 0"
             rounded
@@ -115,170 +157,225 @@
             class="messages"
           />
           <q-item-section avatar>
-            <q-icon
-              :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              name="mail"
-              size="md"
-            />
+            <q-icon name="mail" size="md" />
           </q-item-section>
 
           <q-item-section class="text-h6">Messages</q-item-section>
         </q-item>
 
-        <q-item to="/settings" clickable v-ripple exact>
+        <q-item
+          to="/settings"
+          clickable
+          v-ripple
+          exact
+          :style="{
+            'background-color': getThemeColour(theme.value).mild,
+            color: getThemeColour(theme.value).txt,
+          }"
+        >
           <q-item-section avatar>
-            <q-icon
-              :color="$q.dark.isActive ? 'secondary' : 'primary'"
-              name="settings"
-              size="md"
-            />
+            <q-icon name="settings" size="md" />
           </q-item-section>
 
           <q-item-section class="text-h6">Settings</q-item-section>
         </q-item>
+      </q-list>
 
-        <div
-          class="separator-container"
-          v-if="loggedIn ? 'Log out' : 'Log in / Sign up'"
+      <q-list style="position: absolute; bottom: 0">
+        <q-separator />
+
+        <q-item
+          to="/feedback"
+          clickable
+          v-ripple
+          exact
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
         >
-          <div class="separator">
-            <q-item to="/feedback" clickable v-ripple exact>
-              <q-item-section avatar>
-                <q-icon
-                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                  name="feedback"
-                  size="md"
-                />
-              </q-item-section>
+          <q-item-section avatar>
+            <q-icon name="feedback" size="md" />
+          </q-item-section>
 
-              <q-item-section class="text-h6">Feedback</q-item-section>
-            </q-item>
-            <q-item to="/reports" v-if="admin" clickable v-ripple exact>
-              <q-item-section avatar>
-                <q-icon
-                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                  name="warning"
-                  size="md"
-                />
-              </q-item-section>
+          <q-item-section class="text-h6">Feedback</q-item-section>
+        </q-item>
+        <q-item
+          to="/reports"
+          v-if="admin"
+          clickable
+          v-ripple
+          exact
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+        >
+          <q-item-section avatar>
+            <q-icon name="warning" size="md" />
+          </q-item-section>
 
-              <q-item-section class="text-h6">Reports</q-item-section>
-            </q-item>
-            <q-item to="/about" clickable v-ripple exact>
-              <q-item-section avatar>
-                <q-icon
-                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                  name="info"
-                  size="md"
-                />
-              </q-item-section>
+          <q-item-section class="text-h6">Reports</q-item-section>
+        </q-item>
+        <q-item
+          to="/about"
+          clickable
+          v-ripple
+          exact
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+        >
+          <q-item-section avatar>
+            <q-icon name="info" size="md" />
+          </q-item-section>
 
-              <q-item-section class="text-h6">About & Rules</q-item-section>
-            </q-item>
-            <q-item @click="modeHandler()" clickable v-ripple exact>
-              <q-item-section avatar>
-                <q-icon
-                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                  :name="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
-                  size="md"
-                />
-              </q-item-section>
+          <q-item-section class="text-h6">About & Rules</q-item-section>
+        </q-item>
+        <q-item
+          @click="modeHandler()"
+          clickable
+          v-ripple
+          exact
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+        >
+          <q-item-section avatar>
+            <q-icon
+              :name="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+              size="md"
+            />
+          </q-item-section>
 
-              <q-item-section class="text-h6">{{
-                $q.dark.isActive ? "Light mode" : "Dark mode"
-              }}</q-item-section>
-            </q-item>
+          <q-item-section class="text-h6">{{
+            $q.dark.isActive ? "Light mode" : "Dark mode"
+          }}</q-item-section>
+        </q-item>
+        <q-select
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+          filled
+          v-model="themeOption"
+          :options="getThemeOptions"
+          label="Theme"
+        >
+          <template v-slot:prepend>
+            <q-icon name="dark_mode" size="md" />
+          </template>
+        </q-select>
 
-            <q-item @click="loginHandler()" clickable v-ripple exact>
-              <q-item-section avatar>
-                <q-icon
-                  :color="$q.dark.isActive ? 'secondary' : 'primary'"
-                  name="lock"
-                  size="md"
-                />
-              </q-item-section>
-              <q-item-section class="text-h6"
-                >{{ loggedIn ? "Log out" : "Log in / Sign up"
-                }}<span :class="loggedIn ? 'text-h6 nextToLogout' : 'noLogout'"
-                  >@{{ myUsername }}</span
-                ></q-item-section
-              >
-            </q-item>
-          </div>
-        </div>
+        <q-item
+          @click="loginHandler()"
+          clickable
+          v-ripple
+          exact
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+        >
+          <q-item-section avatar>
+            <q-icon name="lock" size="md" />
+          </q-item-section>
+          <q-item-section class="text-h6"
+            >{{ loggedIn ? "Log out" : "Log in / Sign up"
+            }}<span :class="loggedIn ? 'text-h6 nextToLogout' : 'noLogout'"
+              >@{{ myUsername }}</span
+            ></q-item-section
+          >
+        </q-item>
       </q-list>
     </q-drawer>
 
     <q-drawer
+      ref="drawer"
       show-if-above
       v-model="rightDrawerOpen"
       side="right"
-      :width="323"
+      :width="drawerWidth"
       bordered
+      :style="{
+        'margin-right': margins,
+        'background-color': getThemeColour(theme.value).mild,
+        color: getThemeColour(theme.value).txt,
+      }"
     >
       <q-input
         outlined
-        rounded
-        class="q-ma-md"
-        placeholder="Search Starshifted"
+        class="q-ma-lg"
+        placeholder="Search for content or users"
+        :style="{
+          'margin-right': margins,
+          'background-color': getThemeColour(theme.value).mild,
+          color: getThemeColour(theme.value).txt,
+        }"
       >
         <template v-slot:prepend>
           <q-icon name="search" />
         </template>
       </q-input>
-      <q-list separator padding>
-        <q-item class="q-pa-md">
+      <h5
+        align="center"
+        class="q-ma-sm"
+        :style="{
+          'margin-right': margins,
+        }"
+      >
+        Trending topics
+      </h5>
+      <q-list
+        separator
+        :style="{
+          'margin-right': margins,
+        }"
+      >
+        <q-item
+          class="q-pa-md"
+          v-for="topic in trendingTopics"
+          :key="topic"
+          clickable
+          @click="rediectAndRefresh(topic.topic)"
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
+          "
+        >
           <q-item-section>
-            <q-item-label overline class="text-grey">Animals</q-item-label>
             <q-item-label class="text-weight-bold"
-              >Cats are at it again!</q-item-label
+              >#{{ topic.topic }}</q-item-label
             >
-            <q-item-label caption
-              >Secondary line text. Lorem ipsum dolor sit amet, consectetur
-              adipiscit elit.</q-item-label
+            <q-item-label class="text-grey-8"
+              >Appearing in {{ topic.count }} posts during the past 24
+              hours!</q-item-label
             >
-          </q-item-section>
-
-          <q-item-section side top>
-            <q-item-label caption>5 min ago</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item class="q-pa-md">
-          <q-item-section>
-            <q-item-label overline class="text-grey">E-Sports</q-item-label>
-            <q-item-label class="text-weight-bold"
-              >Overwatch 2 champion</q-item-label
-            >
-            <q-item-label caption
-              >New crowned champion! Check out this article!</q-item-label
-            >
-          </q-item-section>
-
-          <q-item-section side top>
-            <q-item-label caption>5 min ago</q-item-label>
-          </q-item-section>
-        </q-item>
-        <q-item class="q-pa-md">
-          <q-item-section>
-            <q-item-label overline class="text-grey">Animals</q-item-label>
-            <q-item-label class="text-weight-bold"
-              >Cats are at it again!</q-item-label
-            >
-            <q-item-label caption
-              >Secondary line text. Lorem ipsum dolor sit amet, consectetur
-              adipiscit elit.</q-item-label
-            >
-          </q-item-section>
-
-          <q-item-section side top>
-            <q-item-label caption>5 min ago</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>
       <q-item
-        ><q-item-section side top class="flex flex-center full-width"
+        class="flex flex-center"
+        style="position: absolute; bottom: 15px; left: 19%"
+        ><q-item-section side
           ><q-item-label caption class="text-grey-8 text-uppercase"
-            >© 2022 Starshifted</q-item-label
+            >© 2023 {{ APP_NAME }}</q-item-label
           ></q-item-section
         ></q-item
       >
@@ -293,9 +390,15 @@
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, getCurrentInstance } from "vue";
+import {
+  collection,
+  orderBy,
+  query as fquery,
+  onSnapshot,
+} from "firebase/firestore";
 import { signOut } from "firebase/auth";
-import { auth, database } from "../boot/firebase";
+import db, { database, auth, storage } from "src/boot/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
   ref as dbRef,
@@ -306,8 +409,10 @@ import {
   equalTo,
   query,
   onValue,
+  update,
 } from "firebase/database";
 import { useQuasar } from "quasar";
+import { updateTrendingTopics, updateTopics } from "../../trendingTopics";
 
 const loggedInRef = ref(false);
 
@@ -323,6 +428,14 @@ export default {
       users: [],
       userID: "",
       admin: false,
+      theme: "",
+      themeOption: null,
+      posts: [],
+      trendingTopics: [],
+      doYouWantNSFW: false,
+      screenSize: "",
+      drawerWidth: 423,
+      margins: "0",
     };
   },
   setup() {
@@ -376,8 +489,155 @@ export default {
         });
       }
     },
+    themeOption(newValue, oldValue) {
+      const uid = auth.currentUser.uid;
+      const db = getDatabase();
+      const themeValue = this.themeOption || "";
+      update(dbRef(db, "users/" + uid), {
+        theme: themeValue,
+      })
+        .then(() => {
+          this.theme = themeValue;
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+    },
+    doYouWantNSFW(newValue, oldValue) {
+      const uid = auth.currentUser.uid;
+      const db = getDatabase();
+      const NSFWPostValue = this.doYouWantNSFW || false;
+      update(dbRef(db, "users/" + uid), {
+        doYouWantNSFW: NSFWPostValue,
+      })
+        .then(() => {})
+        .catch((e) => {
+          console.error(e);
+        });
+    },
+    margins() {
+      this.updateDrawerContentWidth();
+    },
   },
   methods: {
+    refreshPage() {
+      location.reload();
+    },
+    calculateTimeDifference(postDate) {
+      const currentTime = Date.now();
+      const hoursDiff = (currentTime - postDate) / (60 * 60 * 1000);
+      return hoursDiff;
+    },
+    rediectAndRefresh(topic) {
+      this.$router.push("/topic/" + topic).then(() => {
+        location.reload();
+      });
+    },
+    getTopics() {
+      const topicsMap = new Map(); // Map to store topic counts
+
+      this.posts.forEach((post) => {
+        // Consider posts within the past 24 hours
+        if (post.hashtags && Array.isArray(post.hashtags)) {
+          const hashtags = post.hashtags;
+          const uniqueHashtags = [...new Set(hashtags)]; // Get unique hashtags in the post
+          uniqueHashtags.forEach((tag) => {
+            const isExactMatch = hashtags.some((ht) => ht === tag);
+
+            // Check if the hashtag is a whole word or has a partial match
+            const isWholeWord = new RegExp(`\\b${tag}\\b`).test(post.content); // Consider post content instead of concatenated hashtags
+
+            if (isExactMatch && isWholeWord) {
+              if (topicsMap.has(tag)) {
+                topicsMap.set(tag, topicsMap.get(tag) + 1);
+              } else {
+                topicsMap.set(tag, 1);
+              }
+            }
+          });
+        }
+      });
+      // Filter hashtags that meet the threshold
+      const nonTrendingTopics = Array.from(topicsMap.entries()).reduce(
+        (result, [topic, count]) => {
+          result.push({ topic, count });
+          return result;
+        },
+        []
+      );
+
+      updateTopics(nonTrendingTopics);
+    },
+    getTrendingTopics() {
+      const threshold = this.globalTrendingTopicThreshold; // Number of posts required to be considered trending
+      const maxTopicsToShow = 10;
+
+      const topicsMap = new Map(); // Map to store topic counts
+
+      this.posts.forEach((post) => {
+        const hoursDiff = this.calculateTimeDifference(post.date);
+        if (hoursDiff <= 24) {
+          // Consider posts within the past 24 hours
+          if (post.hashtags && Array.isArray(post.hashtags)) {
+            const hashtags = post.hashtags;
+            const uniqueHashtags = [...new Set(hashtags)]; // Get unique hashtags in the post
+            uniqueHashtags.forEach((tag) => {
+              const isExactMatch = hashtags.some((ht) => ht === tag);
+
+              // Check if the hashtag is a whole word or has a partial match
+              const isWholeWord = new RegExp(`\\b${tag}\\b`).test(post.content); // Consider post content instead of concatenated hashtags
+
+              if (isExactMatch && isWholeWord) {
+                if (topicsMap.has(tag)) {
+                  topicsMap.set(tag, topicsMap.get(tag) + 1);
+                } else {
+                  topicsMap.set(tag, 1);
+                }
+              }
+            });
+          }
+        }
+      });
+      // Filter hashtags that meet the threshold
+      const trendingTopics = Array.from(topicsMap.entries())
+        .reduce((result, [topic, count]) => {
+          if (count >= threshold) {
+            result.push({ topic, count });
+          }
+          return result;
+        }, [])
+        .slice(0, maxTopicsToShow);
+
+      this.trendingTopics = trendingTopics;
+      updateTrendingTopics(trendingTopics);
+    },
+    getPosts() {
+      const postQ = query(collection(db, "posts"), orderBy("date"));
+      const unsubscribe = onSnapshot(postQ, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          let postChange = change.doc.data();
+          postChange.id = change.doc.id;
+          this.postID = postChange.id;
+          this.creatorID = postChange.creatorId;
+          if (postChange.underPostID === undefined) {
+            if (change.type === "added") {
+              this.creatorUsername = postChange.creatorUsername;
+              this.creatorDisplayname = postChange.creatorDisplayname;
+              this.creatorImage = postChange.creatorImage;
+              this.creatorVerified = postChange.isUserVerified;
+              this.postImage = postChange.postImg;
+              this.postID = postChange.id;
+              this.repostID = postChange.repostID;
+              this.creatorID = postChange.creatorId;
+              this.posts.unshift(postChange);
+            }
+          }
+        });
+
+        this.getTrendingTopics();
+        this.getTopics();
+      });
+    },
     loginHandler() {
       if (auth.currentUser) {
         signOut(auth)
@@ -394,8 +654,63 @@ export default {
         this.$router.push("/login");
       }
     },
+    calculateItemWidth(margins) {
+      switch (margins) {
+        case "40%":
+          return "60%";
+        case "20%":
+          return "80%";
+        default:
+          return "100%";
+      }
+    },
+    handleWindowResize() {
+      let newWidth;
+      switch (true) {
+        case window.innerWidth >= 1660:
+          newWidth = 483;
+          this.margins = "40%";
+          break;
+        case window.innerWidth >= 1459:
+          newWidth = 423;
+          this.margins = "20%";
+          break;
+        case window.innerWidth >= 1356:
+          newWidth = 310;
+          this.margins = "0";
+          break;
+      }
+      this.drawerWidth = newWidth;
+    },
+    updateDrawerContentWidth() {
+      const drawerElements = document.querySelectorAll(".q-drawer--left");
+      if (drawerElements.length > 0) {
+        for (let i = 0; i < drawerElements.length; i++) {
+          const drawerContent =
+            drawerElements[i].querySelector(".q-drawer__content");
+          if (drawerContent) {
+            drawerContent.style.setProperty(
+              "width",
+              this.margins === "40%"
+                ? "60%"
+                : this.margins === "20%"
+                ? "80%"
+                : "100%",
+              "important"
+            );
+          }
+        }
+      }
+    },
+  },
+  beforeUnmount() {
+    // Remove the listener when the component is about to be unmounted
+    window.removeEventListener("resize", this.handleWindowResize);
   },
   mounted() {
+    this.handleWindowResize();
+    window.addEventListener("resize", this.handleWindowResize);
+
     onAuthStateChanged(auth, (user) => {
       if (user) {
         const userId = auth.currentUser.uid;
@@ -407,6 +722,9 @@ export default {
             if (snapshot.exists()) {
               this.myUsername = snapshot.val().username;
               this.admin = snapshot.val().admin;
+              this.theme = snapshot.val().theme;
+              this.themeOption = snapshot.val().theme;
+              this.doYouWantNSFW = snapshot.val().doYouWantNSFW;
             } else {
               console.log("No data available");
             }
@@ -420,11 +738,20 @@ export default {
         this.loggedIn = false;
       }
     });
+    this.getPosts();
   },
 };
 </script>
 
 <style lang="scss" scoped>
+.drawer-content-width-60 {
+  width: 60% !important;
+}
+
+.drawer-content-width-80 {
+  width: 80% !important;
+}
+
 a.q-router-link--active {
   color: inherit;
 }

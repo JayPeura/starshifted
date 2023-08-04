@@ -6,25 +6,19 @@
         enter-active-class="animated fadeIn slow"
         leave-active-class="animated fadeOut slow"
       >
-        <q-item v-for="post in reports" :key="post.id" class="q-py-md">
+        <q-item v-for="report in reports" :key="report.id" class="q-py-md report">
           <q-item-section>
             <q-item-label>
               <span
-                class="text-grey-7"
-                style="
-                  white-space: nowrap;
-                  text-overflow: ellipsis;
-                  width: 30px;
-                  overflow: hidden;
-                "
+                class="text-grey-7 posterUsername"
               >
-                {{ post.posterUsername }}
+                {{ report.posterUsername }}
               </span>
             </q-item-label>
             <q-item-label class="post-content text-body1">
-              Post content: "{{ post.postContent }}"
+              Post content: "{{ report.postContent }}"
             </q-item-label>
-            <span>Report: {{ post.reportContent }}</span>
+            <span>Report message: {{ report.reportContent }}</span>
           </q-item-section>
           <q-btn
             round
@@ -32,7 +26,17 @@
             flat
             icon="close"
             class="showwhenimagebtn"
-            @click="confirm(post)"
+            title="Delete this report"
+            @click="confirm(report)"
+          ></q-btn>
+          <q-btn
+            round
+            dense
+            flat
+            icon="chat"
+            class="showwhenimagebtn"
+            title="See the reported content"
+            @click="redirectToPost(report.postID)"
           ></q-btn>
         </q-item>
       </transition-group>
@@ -65,6 +69,7 @@ export default {
     return {
       reports: [],
       admin: false,
+      report: {},
     };
   },
   setup() {
@@ -72,7 +77,7 @@ export default {
     const confirm = (post) => {
       $q.dialog({
         title: "Delete Report",
-        message: `Would you like to remove this report: ${post.content}?`,
+        message: `Would you like to remove this report: ${post.reportContent}?`,
         cancel: true,
         persistent: true,
       }).onOk(() => {
@@ -99,20 +104,23 @@ export default {
           }
 
           if (change.type === "modified") {
-            let index = this.feedback.findIndex(
+            let index = this.reports.findIndex(
               (post) => post.id === postChange.id
             );
-            Object.assign(this.feedback[index], postChange);
+            Object.assign(this.reports[index], postChange);
           }
           if (change.type === "removed") {
-            let index = this.feedback.findIndex(
+            let index = this.reports.findIndex(
               (post) => post.id === postChange.id
             );
-            this.feedback.splice(index, 1);
+            this.reports.splice(index, 1);
           }
         });
       });
     },
+    redirectToPost(report) {
+      this.$router.push(`/post/${report}`);
+    }
   },
   mounted() {
     const userId = auth.currentUser.uid;
@@ -140,5 +148,19 @@ export default {
   margin: 0;
   width: 10px;
   height: 10px;
+}
+
+.posterUsername {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 30px;
+  overflow: hidden;
+}
+
+.report {
+  cursor: pointer;
+}
+.report:hover {
+  background-color: rgba(255, 255, 255, 0.11);
 }
 </style>

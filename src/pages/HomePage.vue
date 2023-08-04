@@ -1,8 +1,25 @@
 <template>
   <q-page class="relative-position">
-    <q-scroll-area :visible="false" class="absolute full-width full-height">
+    <q-scroll-area
+      :visible="false"
+      class="absolute full-width full-height"
+      :style="
+        'background-color: ' +
+        getThemeColour(theme.value).mild +
+        '; color: ' +
+        getThemeColour(theme.value).txt
+      "
+    >
       <div class="q-pt-lg q-pb-sm q-px-md row items-end q-col-gutter-sm">
         <div class="col">
+          <span class="isNSFW">NSFW?</span>
+          <q-toggle
+            v-model="isNSFW"
+            color="red"
+            keep-color
+            title="Is your post NSFW? Toggle this if yes (:"
+            style="position: absolute; top: 0; right: 0"
+          />
           <q-input
             bottom-slots
             v-model="newStarshiftingPost"
@@ -12,6 +29,7 @@
             :counter="newStarshiftingPost ? true : false"
             maxlength="680"
             class="new-post"
+            @update:model-value="showSuggestions"
           >
             <template v-slot:before>
               <q-avatar round size="xl">
@@ -19,6 +37,17 @@
               </q-avatar>
             </template>
           </q-input>
+
+          <ul v-if="showSuggestedHashtags">
+            <q-item
+              v-for="suggestion in suggestedHashtags"
+              :key="suggestion"
+              @click="selectSuggestion(suggestion)"
+              clickable
+            >
+              #{{ suggestion.topic }}
+            </q-item>
+          </ul>
         </div>
 
         <div class="col col-shrink">
@@ -63,7 +92,12 @@
       </div>
       <q-separator
         size="15px"
-        :color="$q.dark.isActive ? 'grey-10' : 'grey-4'"
+        :style="
+          'background-color: ' +
+          getThemeColour(theme.value).mild +
+          '; color: ' +
+          getThemeColour(theme.value).txt
+        "
         :class="$q.dark.isActive ? 'dividerDark' : 'dividerLight'"
       />
       <q-list v-if="$route.name === 'Home'" separator>
@@ -91,11 +125,15 @@
 
             <q-item-section>
               <q-item-label class="text-subtitle1"
-                ><strong @click="handleRedirect(post)" class="clickableLabel">{{
-                  post.creatorDisplayname
-                }}</strong>
+                ><strong
+                  @click="handleRedirect(post)"
+                  class="clickableLabel"
+                  :style="'color: ' + getThemeColour(theme.value).txt"
+                  >{{ post.creatorDisplayname }}</strong
+                >
                 <q-icon
                   :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
+                  :style="'color: ' + getThemeColour(theme.value).txt"
                   :class="
                     post.isUserVerified
                       ? 'showWhenVerified'
@@ -111,31 +149,138 @@
                   "
                 >
                   @{{ post.creatorUsername }}
-                  &bull;
+                  ─
                 </span>
                 <span class="text-grey-7">
                   {{
                     post.date > Date.now() - 35 * 60 * 60 * 1000
-                      ? formatDistanceStrict(post.date, new Date())
+                      ? formatDistanceStrict(post.date, new Date()) + " ago"
                       : format(post.date, "d MMM")
                   }}</span
                 >
+                <span v-if="post.NSFW" style="color: red; margin-left: 5px"
+                  >NSFW</span
+                >
               </q-item-label>
               <q-item-label class="homePostContent text-body1">
-                <span v-html="linkifyText(post)"></span>
-                <img
-                  @click="
-                    imageShower = true;
-                    openImage = post.postImg;
+                <span
+                  v-html="linkifyText(post)"
+                  :style="
+                    'background-color: ' +
+                    getThemeColour(theme.value).mild +
+                    '; color: ' +
+                    getThemeColour(theme.value).txt
                   "
+                ></span>
+                <img
+                  v-if="post.NSFW"
+                  @click="openDialog(post)"
+                  :src="post.postImg"
+                  class="postImage blur"
+                />
+                <img
+                  v-else
+                  @click="openDialog(post)"
                   :src="post.postImg"
                   class="postImage"
                 />
-                <q-dialog v-model="imageShower">
-                  <q-card>
-                    <img :src="openImage" />
-                  </q-card>
-                </q-dialog>
+                <div v-for="repost in repostedPosts" :key="repost.id">
+                  <q-item
+                    v-if="
+                      post.repostID !== undefined &&
+                      repost.id === post.repostID &&
+                      !repost.deleted
+                    "
+                    style="
+                      border: 1px solid grey;
+                      border-radius: 5px;
+                      padding: 15px;
+                      margin-top: 10px;
+                      margin-right: 20px;
+                    "
+                    clickable
+                    :to="'/post/' + post.repostID"
+                  >
+                    <q-item-section avatar top>
+                      <label
+                        for="actual-btn"
+                        class="clickableLabel"
+                        @click="handleRedirect(repost)"
+                      >
+                        <q-avatar round size="lg">
+                          <q-img
+                            v-bind:src="repost.creatorImage"
+                            class="homeRepostAvatar"
+                          /> </q-avatar
+                      ></label>
+
+                      <button id="actual-btn" hidden></button>
+                    </q-item-section>
+                    <q-item-label class="text-subtitle1"
+                      ><strong
+                        @click="handleRedirect(repost)"
+                        class="clickableLabel"
+                        :style="'color: ' + getThemeColour(theme.value).txt"
+                        >{{ repost.creatorDisplayname }}</strong
+                      >
+                      <q-icon
+                        :name="post.isUserVerified ? 'bi-moon-stars-fill' : ''"
+                        :style="'color: ' + getThemeColour(theme.value).txt"
+                        :class="
+                          repost.isUserVerified
+                            ? 'showWhenVerified'
+                            : 'hideWhenNotVerified'
+                        "
+                      />
+                      <span
+                        class="text-grey-7"
+                        style="
+                          text-overflow: ellipsis;
+                          white-space: nowrap;
+                          overflow: hidden;
+                        "
+                      >
+                        @{{ repost.creatorUsername }}
+                        ─
+                      </span>
+                      <span class="text-grey-7">
+                        {{
+                          repost.date > Date.now() - 35 * 60 * 60 * 1000
+                            ? formatDistanceStrict(repost.date, new Date()) +
+                              " ago"
+                            : format(repost.date, "d MMM")
+                        }}</span
+                      >
+                      <span
+                        v-if="repost.NSFW"
+                        style="color: red; margin-left: 5px"
+                        >NSFW</span
+                      >
+                      <q-item-label class="homePostContent text-body2">
+                        <span
+                          v-html="linkifyText(repost)"
+                          :style="
+                            'background-color: ' +
+                            getThemeColour(theme.value).mild +
+                            '; color: ' +
+                            getThemeColour(theme.value).txt
+                          "
+                        ></span>
+                        <img
+                          v-if="repost.NSFW"
+                          :src="repost.postImg"
+                          class="postImage blur"
+                        />
+                        <img v-else :src="repost.postImg" class="postImage" />
+                      </q-item-label>
+                    </q-item-label>
+                  </q-item>
+                  <q-item
+                    v-if="repost.deleted && repost.id === post.repostID"
+                    style="border: 2px solid grey; padding: 15px; color: red"
+                    >DELETED POST</q-item
+                  >
+                </div>
               </q-item-label>
               <div class="postMenu row justify-between q-mt-sm">
                 <q-btn
@@ -235,33 +380,44 @@
                   size="sm"
                   :to="'/post/' + post.id"
                 />
-                <q-btn flat round color="grey" icon="cached" size="sm" />
                 <q-btn
                   flat
                   round
-                  @click="toggleLiked(post)"
-                  :color="checkColor(post)"
-                  :icon="checkIcon(post)"
+                  color="grey"
+                  icon="cached"
                   size="sm"
-                >
-                </q-btn>
-                <span
-                  class="postLikes"
                   @click="
-                    likePrompt = true;
+                    repostPrompt = true;
                     selectedPost = post;
-                    selectedLikes();
                   "
-                >
-                  {{
-                    post.whoLiked !== undefined
-                      ? new Intl.NumberFormat("en-GB", {
-                          notation: "compact",
-                        }).format(Object.keys(post.whoLiked).length)
-                      : 0
-                  }}
-                </span>
-
+                />
+                <div class="postButtonContainer">
+                  <q-btn
+                    flat
+                    round
+                    @click="toggleLiked(post)"
+                    :color="checkColor(post)"
+                    :icon="checkIcon(post)"
+                    size="sm"
+                  >
+                  </q-btn>
+                  <span
+                    class="postLikes"
+                    @click="
+                      likePrompt = true;
+                      selectedPost = post;
+                      selectedLikes();
+                    "
+                  >
+                    {{
+                      post.whoLiked !== undefined
+                        ? new Intl.NumberFormat("en-GB", {
+                            notation: "compact",
+                          }).format(Object.keys(post.whoLiked).length)
+                        : 0
+                    }}
+                  </span>
+                </div>
                 <q-btn flat round color="grey" icon="share" size="sm" />
               </div>
             </q-item-section>
@@ -274,6 +430,99 @@
         />
       </q-list>
     </q-scroll-area>
+    <q-dialog v-for="post in posts" :key="post.id" v-model="post.imageShower">
+      <q-card>
+        <img :src="post.postImg" />
+      </q-card>
+    </q-dialog>
+    <q-dialog v-model="repostPrompt" persistent>
+      <q-card style="padding: 10px; width: 700px">
+        <q-card-section>
+          <div class="text-h5">Want to repost this?</div>
+          <span class="text-body1 text-red"
+            >@{{ selectedPost.creatorUsername }}:</span
+          >
+          <p>{{ selectedPost.content }}</p>
+          <q-img
+            v-if="selectedPost.postImg"
+            :src="selectedPost.postImg"
+            style="height: 300px; width: 300px"
+          />
+        </q-card-section>
+        <q-separator />
+        <div class="q-pt-lg q-pb-sm q-px-md row items-end q-col-gutter-sm">
+          <div class="col">
+            <q-input
+              bottom-slots
+              v-model="repostPost"
+              placeholder="Repost content here"
+              autogrow
+              borderless
+              :counter="repostPost ? true : false"
+              maxlength="680"
+              class="new-post"
+            >
+              <template v-slot:before>
+                <q-avatar round size="xl">
+                  <q-img v-bind:src="myImage" class="myPostAvatar" />
+                </q-avatar>
+              </template>
+            </q-input>
+          </div>
+
+          <div class="col col-shrink">
+            <span class="isNSFW">NSFW?</span>
+            <q-toggle
+              v-model="isNSFW"
+              color="red"
+              keep-color
+              title="Is your post NSFW? Toggle this if yes (:"
+            />
+            <q-btn
+              icon="image"
+              round
+              dense
+              flat
+              class="q-mb-lg"
+              type="button"
+              @click="pickFile"
+            />
+            <q-file
+              style="display: none"
+              v-model="repostImage"
+              accept=".jpg, image/*"
+              @update:model-value="onFilePickedRepost(e)"
+              ref="files"
+            >
+            </q-file>
+            <q-btn
+              round
+              dense
+              flat
+              @click="repostThis(selectedPost, repostPost)"
+              icon="send"
+              class="q-mb-lg"
+              :disable="!repostPost && !repostImage"
+              v-close-popup
+            />
+          </div>
+        </div>
+        <div :class="imageRepostShow ? 'showwhenimage' : 'hidewhenimage'">
+          <q-img :src="repostImageUrl" class="imagePreview" ratio="1" />
+          <q-btn
+            round
+            dense
+            flat
+            icon="close"
+            :class="imageRepostShow ? 'showwhenimagebtn' : 'hidewhenimagebtn'"
+            @click="cancelFileUpload"
+          ></q-btn>
+        </div>
+        <q-card-actions>
+          <q-btn v-close-popup label="Close" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
     <q-dialog v-model="likePrompt" persistent>
       <q-card>
         <q-card-section>
@@ -358,8 +607,12 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   updateDoc,
   deleteField,
+  setDoc,
+  arrayUnion,
+  where,
 } from "firebase/firestore";
 import db, { database, auth, storage } from "src/boot/firebase";
 import {
@@ -374,6 +627,7 @@ import { formatDistance, formatDistanceStrict, format } from "date-fns";
 import { ref as stRef, uploadBytes } from "firebase/storage";
 import sanitizeHtml from "sanitize-html";
 import { useQuasar } from "quasar";
+import { trendingTopics, topics } from "../../trendingTopics";
 
 const imageRef = ref(null);
 const imageUrlRef = ref("");
@@ -381,9 +635,25 @@ const likeRef = ref(0);
 
 export default defineComponent({
   name: "HomePage",
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.posts = [];
+      vm.repostedPosts = [];
+      vm.getPosts();
+      vm.getProfileInfo();
+    });
+  },
+  beforeRouteUpdate(to, from, next) {
+    this.posts = [];
+    this.repostedPosts = [];
+    this.getPosts();
+    this.getProfileInfo();
+    next();
+  },
   data() {
     return {
       newStarshiftingPost: "",
+      isNSFW: false,
       currName: "",
       currUsername: "",
       creatorUsername: "",
@@ -419,6 +689,19 @@ export default defineComponent({
       selectedPost: {},
       likers: [],
       noLikes: true,
+      hashtags: [],
+      theme: "",
+      repostPrompt: false,
+      repostPost: "",
+      repostImageUrl: "",
+      repostImage: null,
+      imageRepostShow: false,
+      repostedPosts: [],
+      repostID: [],
+      suggestedHashtags: [],
+      showSuggestedHashtags: false,
+      doYouWantNSFW: false,
+      NSFWPosts: [],
     };
   },
   setup() {
@@ -468,6 +751,94 @@ export default defineComponent({
     return { confirmReport, banUser };
   },
   methods: {
+    openDialog(post) {
+      post.openImage = post.postImg;
+      post.imageShower = true;
+    },
+    showSuggestions() {
+      const hashtags = this.newStarshiftingPost.match(/#[^\s#]+/g); // Extract hashtags using regular expression
+      if (hashtags && hashtags.length > 0) {
+        const lastHashtag = hashtags[hashtags.length - 1];
+        const keyword = lastHashtag.substring(1); // Remove the leading "#" from the last hashtag
+
+        // Get trending suggestions based on the keyword
+        const trendingSuggestions = trendingTopics.filter((existingTag) =>
+          existingTag.topic.startsWith(keyword)
+        );
+
+        const nonTrendingSuggestions = topics.filter(
+          (existingTag) =>
+            existingTag.topic.startsWith(keyword) &&
+            !trendingSuggestions.some((tag) => tag.topic === existingTag.topic)
+        );
+
+        // Combine and filter out duplicate suggestions
+        const combinedSuggestions = [
+          ...trendingSuggestions,
+          ...nonTrendingSuggestions,
+        ];
+
+        // Limit the suggestions to 4 items
+        this.suggestedHashtags = combinedSuggestions.slice(0, 4);
+        this.showSuggestedHashtags = trendingSuggestions.length > 0;
+      } else {
+        this.showSuggestedHashtags = false;
+        this.suggestedHashtags = [];
+      }
+    },
+    selectSuggestion(suggestion) {
+      const hashtags = this.newStarshiftingPost.match(/#[^\s#]+/g); // Extract hashtags using regular expression
+      if (hashtags && hashtags.length > 0) {
+        const lastHashtag = hashtags[hashtags.length - 1];
+        const updatedText = this.newStarshiftingPost.replace(
+          lastHashtag,
+          "#" + suggestion.topic
+        );
+        this.newStarshiftingPost = updatedText;
+      }
+      this.showSuggestedHashtags = false;
+      this.suggestedHashtags = [];
+    },
+    async repostThis(post, repost) {
+      const creatorID = auth.currentUser.uid;
+      let newPost = {
+        content: repost,
+        date: Date.now(),
+        whoLiked: [],
+        isUserVerified: this.userVerified,
+        creatorUsername: this.currUsername,
+        creatorDisplayname: this.currName,
+        creatorImage: this.myImage,
+        creatorId: creatorID,
+        postImg: this.repostImageUrl,
+        hashtags: this.createHashtags(repost),
+        NSFW: this.isNSFW,
+        repostID: post.id,
+      };
+      addDoc(collection(db, "posts"), newPost);
+      if (this.repostImage !== null) {
+        let uidDate = new Date().getTime();
+        const currentUser = auth.currentUser;
+
+        const metadata = {
+          contentType: this.repostImage.type,
+        };
+
+        const fileRef = stRef(
+          storage,
+          "images/posts/" + currentUser.uid + uidDate
+        );
+
+        await uploadBytes(fileRef, this.repostImage, metadata);
+      }
+      this.imageRepostShow = false;
+      this.repostImageUrl = "";
+      this.repostImage = null;
+      this.hashtags = [];
+    },
+    resetImage() {
+      this.openImage = "";
+    },
     handleRedirectLikes(liker) {
       console.log(liker);
       const dbReff = dbRef(getDatabase());
@@ -615,11 +986,11 @@ export default defineComponent({
     checkIcon(post) {
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
-        return "favorite_border";
+        return "star_border";
       } else if (post.whoLiked[myID]) {
-        return "favorite";
+        return "star";
       } else if (!post.whoLiked[myID]) {
-        return "favorite_border";
+        return "star_border";
       }
     },
     linkifyText(post) {
@@ -635,10 +1006,17 @@ export default defineComponent({
         pattern2,
         '$1<a href="http://$2" target="_blank">$2</a>'
       );
+
+      const pattern3 = /#(\w+)/g;
+      text = text.replace(
+        pattern3,
+        '<a class="hashtag" href="/#/topic/$1">#$1</a>'
+      );
+
       return sanitizeHtml(text, {
         allowedTags: ["b", "i", "em", "strong", "a"],
         allowedAttributes: {
-          a: ["href"],
+          a: ["href", "class"],
         },
         allowedIframeHostnames: ["www.youtube.com"],
       });
@@ -647,6 +1025,9 @@ export default defineComponent({
       this.image = null;
       this.imageUrl = "";
       this.imageShow = false;
+      this.repostImage = null;
+      this.repostImageUrl = "";
+      this.imageRepostShow = false;
     },
     pickFile() {
       this.$refs.files.pickFiles();
@@ -659,10 +1040,26 @@ export default defineComponent({
         this.imageShow = true;
       };
     },
+    async onFilePickedRepost(e) {
+      const reader = new FileReader();
+      reader.readAsDataURL(this.repostImage);
+      reader.onload = () => {
+        this.repostImageUrl = reader.result;
+        this.imageRepostShow = true;
+      };
+    },
     handleRedirect(post) {
       this.$router.push("/profile/" + post.creatorUsername);
     },
-
+    createHashtags(text) {
+      const regex = /#\w+/g;
+      const matches = text.match(regex);
+      if (matches) {
+        return (this.hashtags = [...matches.map((tag) => tag.substring(1))]);
+      } else {
+        return [];
+      }
+    },
     async addNewPost() {
       const creatorID = auth.currentUser.uid;
       let newPost = {
@@ -675,6 +1072,8 @@ export default defineComponent({
         creatorImage: this.myImage,
         creatorId: creatorID,
         postImg: this.imageUrl,
+        hashtags: this.createHashtags(this.newStarshiftingPost),
+        NSFW: this.isNSFW,
       };
       addDoc(collection(db, "posts"), newPost);
       if (this.image !== null) {
@@ -696,6 +1095,7 @@ export default defineComponent({
       this.imageUrl = "";
       this.image = null;
       this.newStarshiftingPost = "";
+      this.hashtags = [];
     },
     deletePost(post) {
       if (auth.currentUser.uid === post.creatorId || this.admin) {
@@ -708,16 +1108,109 @@ export default defineComponent({
       const creatorID = auth.currentUser.uid;
       this.postID = post.id;
 
+      this.getProfileInfo();
       if (post.whoLiked === undefined) {
         const updateData = {
           [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
+        const notificationsRef = doc(db, "notifications", post.creatorId);
+        const docSnapshot = await getDoc(notificationsRef);
+
+        if (docSnapshot.exists()) {
+          const notificationsData = docSnapshot.data().notifications;
+          const existingNotification = notificationsData.find(
+            (notification) =>
+              notification.type === "like" &&
+              notification.postID === post.id &&
+              notification.likerID === creatorID
+          );
+
+          if (!existingNotification) {
+            notificationsData.push({
+              type: "like",
+              postID: post.id,
+              likerID: creatorID,
+              date: Date.now(),
+              recipientID: post.creatorId,
+              seen: false,
+              likerDN: this.currName,
+              index: notificationsData.length,
+            });
+
+            await updateDoc(notificationsRef, {
+              notifications: notificationsData,
+            });
+          }
+        } else {
+          const notificationsData = [
+            {
+              type: "like",
+              postID: post.id,
+              likerID: creatorID,
+              date: Date.now(),
+              recipientID: post.creatorId,
+              seen: false,
+              likerDN: this.currName,
+              index: 0,
+            },
+          ];
+
+          await setDoc(notificationsRef, {
+            notifications: notificationsData,
+          });
+        }
       } else if (!post.whoLiked[creatorID]) {
         const updateData = {
           [`whoLiked.${creatorID}`]: { dateLiked: Date.now() },
         };
         updateDoc(doc(db, "posts/", post.id), updateData);
+        const notificationsRef = doc(db, "notifications", post.creatorId);
+        const docSnapshot = await getDoc(notificationsRef);
+
+        if (docSnapshot.exists()) {
+          const notificationsData = docSnapshot.data().notifications;
+          const existingNotification = notificationsData.find(
+            (notification) =>
+              notification.type === "like" &&
+              notification.postID === post.id &&
+              notification.likerID === creatorID
+          );
+
+          if (!existingNotification) {
+            notificationsData.push({
+              type: "like",
+              postID: post.id,
+              likerID: creatorID,
+              date: Date.now(),
+              recipientID: post.creatorId,
+              seen: false,
+              likerDN: this.currName,
+              index: notificationsData.length,
+            });
+
+            await updateDoc(notificationsRef, {
+              notifications: notificationsData,
+            });
+          }
+        } else {
+          const notificationsData = [
+            {
+              type: "like",
+              postID: post.id,
+              likerID: creatorID,
+              date: Date.now(),
+              recipientID: post.creatorId,
+              seen: false,
+              likerDN: this.currName,
+              index: 0,
+            },
+          ];
+
+          await setDoc(notificationsRef, {
+            notifications: notificationsData,
+          });
+        }
       } else if (post.whoLiked[creatorID]) {
         const updateData = {
           [`whoLiked.${creatorID}`]: deleteField(),
@@ -753,153 +1246,391 @@ export default defineComponent({
         console.log("No such document!");
       }
     },
-    getPosts() {
+    async getPosts() {
       const myID = auth.currentUser.uid;
-
-      const postQ = query(collection(db, "posts"), orderBy("date"));
-      const unsubscribe = onSnapshot(postQ, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          let postChange = change.doc.data();
-          postChange.id = change.doc.id;
-          this.postID = postChange.id;
-          this.creatorID = postChange.creatorId;
-          if (postChange.underPostID === undefined) {
-            if (change.type === "added") {
-              this.creatorUsername = postChange.creatorUsername;
-              this.creatorDisplayname = postChange.creatorDisplayname;
-              this.creatorImage = postChange.creatorImage;
-              this.creatorVerified = postChange.isUserVerified;
-              this.postImage = postChange.postImg;
-              this.postID = postChange.id;
-              this.creatorID = postChange.creatorId;
-              this.myPosts.unshift(postChange.id);
-              this.posts.unshift(postChange);
-
-              if (postChange.creatorId === this.creatorID) {
-                const joinedArray = this.myPosts.join(" ");
-                const array = joinedArray.split(" ");
-                const filteredArray = array.find(
-                  (item) => item === postChange.id
-                );
-
-                const usernameRef = dbRef(
-                  database,
-                  "users/" + postChange.creatorId
-                );
-                onValue(usernameRef, (snapshot) => {
-                  if (snapshot.val() !== null) {
-                    const data = snapshot.val();
-                    if (data.verified === undefined) {
-                      this.userVerified = false;
-                      this.currUsername = data.username;
-                      this.currName = data.displayName;
-                      if (this.creatorID === myID && this.postID) {
-                        const replaceInfo = doc(db, "posts/", filteredArray);
-                        const newInfo = {
-                          creatorUsername: data.username,
-                          creatorDisplayname: data.displayName,
-                          isUserVerified: false,
-                          creatorImage: data.image,
-                          isHidden: false,
-                        };
-                        updateDoc(replaceInfo, newInfo);
+      const dbReff = dbRef(getDatabase());
+      get(child(dbReff, `users/${myID}`)).then((snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          // Retrieve the followers' IDs from the followingData object
+          if (data.following !== undefined) {
+            const followingIDs = Object.keys(data.following);
+            followingIDs.push(myID);
+            const postQ = query(
+              collection(db, "posts"),
+              where("creatorId", "in", followingIDs),
+              orderBy("date")
+            );
+            const unsubscribe = onSnapshot(postQ, (snapshot) => {
+              snapshot.docChanges().forEach((change) => {
+                let postChange = change.doc.data();
+                postChange.id = change.doc.id;
+                this.postID = postChange.id;
+                this.creatorID = postChange.creatorId;
+                if (postChange.underPostID === undefined) {
+                  if (change.type === "added") {
+                    this.creatorUsername = postChange.creatorUsername;
+                    this.creatorDisplayname = postChange.creatorDisplayname;
+                    this.creatorImage = postChange.creatorImage;
+                    this.creatorVerified = postChange.isUserVerified;
+                    this.postImage = postChange.postImg;
+                    this.postID = postChange.id;
+                    this.repostID = postChange.repostID;
+                    this.creatorID = postChange.creatorId;
+                    if (postChange.NSFW) {
+                      if (this.doYouWantNSFW) {
+                        this.myPosts.unshift(postChange.id);
+                        this.posts.unshift(postChange);
                       }
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        isUserVerified: this.userVerified,
-                      };
-                      updateDoc(replaceInfo, newInfo);
                     } else {
-                      this.userVerified = data.verified;
-                      this.currUsername = data.username;
-                      this.currName = data.displayName;
-
-                      if (this.creatorID === myID && this.postID) {
-                        const replaceInfo = doc(db, "posts/", filteredArray);
-                        const newInfo = {
-                          creatorUsername: data.username,
-                          creatorDisplayname: data.displayName,
-                          isUserVerified: data.verified,
-                          creatorImage: data.image,
-                          isHidden: false,
-                        };
-                        updateDoc(replaceInfo, newInfo);
-                      } else if (!this.creatorID === myID) {
-                        const replaceInfo = doc(db, "posts/", filteredArray);
-                        const newInfo = {
-                          isHidden: true,
-                        };
-                        updateDoc(replaceInfo, newInfo);
-                      }
-                      const replaceInfo = doc(db, "posts/", filteredArray);
-                      const newInfo = {
-                        isUserVerified: this.userVerified,
-                      };
-                      updateDoc(replaceInfo, newInfo);
+                      this.myPosts.unshift(postChange.id);
+                      this.posts.unshift(postChange);
                     }
-                  } else if (snapshot.val() === null) {
-                    this.userVerified = false;
-                    this.currUsername = "";
-                    this.currName = "Deleted User";
-                    this.creatorUsername = "";
-                    this.creatorDisplayname = "Deleted User";
-                    this.creatorImage = this.defaultImage;
-                    this.creatorVerified = false;
 
-                    const replaceInfo = doc(db, "posts/", filteredArray);
-                    const newInfo = {
-                      creatorUsername: "",
-                      creatorDisplayname: "Deleted User",
-                      isUserVerified: false,
-                      creatorImage: this.defaultImage,
-                      content: "(deleted)",
-                    };
-                    updateDoc(replaceInfo, newInfo);
+                    if (postChange.hashtags !== undefined) {
+                      postChange.hashtags.forEach((hashtag) => {
+                        if (!this.hashtags.includes(hashtag)) {
+                          this.hashtags.push(hashtag);
+                        }
+                      });
+                    }
+                    if (postChange.repostID !== undefined) {
+                      const newSub = onSnapshot(
+                        doc(db, "posts", postChange.repostID),
+                        (prevPoster) => {
+                          if (prevPoster.exists()) {
+                            let prevPost = prevPoster.data();
+                            prevPost.id = prevPoster.id;
+
+                            const existingPostIndex =
+                              this.repostedPosts.findIndex(
+                                (post) => post.id === postChange.repostID
+                              );
+
+                            if (existingPostIndex === -1) {
+                              this.repostedPosts.push(prevPost);
+                            }
+                          } else {
+                            const deletedPostIndex =
+                              this.repostedPosts.findIndex(
+                                (post) => post.id === postChange.repostID
+                              );
+
+                            if (deletedPostIndex !== -1) {
+                              this.repostedPosts[
+                                deletedPostIndex
+                              ].deleted = true;
+                            } else {
+                              this.repostedPosts.push({
+                                deleted: true,
+                                id: postChange.repostID,
+                              });
+                            }
+                          }
+                        }
+                      );
+                    }
+
+                    if (postChange.creatorId === this.creatorID) {
+                      const joinedArray = this.myPosts.join(" ");
+                      const array = joinedArray.split(" ");
+                      const filteredArray = array.filter(
+                        (item) => item === postChange.id
+                      );
+
+                      const usernameRef = dbRef(
+                        database,
+                        "users/" + postChange.creatorId
+                      );
+                      onValue(usernameRef, async (snapshot) => {
+                        if (snapshot.val() !== null) {
+                          const data = snapshot.val();
+                          for (const postId of filteredArray) {
+                            const replaceInfo = doc(db, "posts", postId);
+                            let newInfo;
+
+                            if (data.verified === undefined) {
+                              this.userVerified = false;
+                              this.currUsername = data.username;
+                              this.currName = data.displayName;
+
+                              if (this.creatorID === myID && this.postID) {
+                                newInfo = {
+                                  creatorUsername: data.username,
+                                  creatorDisplayname: data.displayName,
+                                  isUserVerified: false,
+                                  creatorImage: data.image,
+                                  isHidden: false,
+                                };
+                              } else {
+                                newInfo = {
+                                  isUserVerified: this.userVerified,
+                                };
+                              }
+                            } else {
+                              this.userVerified = data.verified;
+                              this.currUsername = data.username;
+                              this.currName = data.displayName;
+
+                              if (this.creatorID === myID && this.postID) {
+                                newInfo = {
+                                  creatorUsername: data.username,
+                                  creatorDisplayname: data.displayName,
+                                  isUserVerified: data.verified,
+                                  creatorImage: data.image,
+                                  isHidden: false,
+                                };
+                              } else if (this.creatorID !== myID) {
+                                newInfo = {
+                                  isHidden: true,
+                                };
+                              } else {
+                                newInfo = {
+                                  isUserVerified: this.userVerified,
+                                };
+                              }
+                            }
+
+                            await updateDoc(replaceInfo, newInfo);
+                          }
+                        } else if (snapshot.val() === null) {
+                          this.userVerified = false;
+                          this.currUsername = "";
+                          this.currName = "Deleted User";
+                          this.creatorUsername = "";
+                          this.creatorDisplayname = "Deleted User";
+                          this.creatorImage = this.defaultImage;
+                          this.creatorVerified = false;
+
+                          const replaceInfo = doc(db, "posts/", filteredArray);
+                          const newInfo = {
+                            creatorUsername: "",
+                            creatorDisplayname: "Deleted User",
+                            isUserVerified: false,
+                            creatorImage: this.defaultImage,
+                            content: "(deleted)",
+                          };
+                          updateDoc(replaceInfo, newInfo);
+                        }
+                      });
+                    }
                   }
-                });
-              }
-            }
 
-            if (change.type === "modified") {
-              let index = this.posts.findIndex(
-                (post) => post.id === postChange.id
-              );
-              Object.assign(this.posts[index], postChange);
-            }
-            if (change.type === "removed") {
-              let index = this.posts.findIndex(
-                (post) => post.id === postChange.id
-              );
-              this.posts.splice(index, 1);
-            }
+                  if (change.type === "modified") {
+                    let index = this.posts.findIndex(
+                      (post) => post.id === postChange.id
+                    );
+                    Object.assign(this.posts[index], postChange);
+                  }
+                  if (change.type === "removed") {
+                    let index = this.posts.findIndex(
+                      (post) => post.id === postChange.id
+                    );
+                    this.posts.splice(index, 1);
+                  }
+                }
+              });
+            });
+          } else {
+            const postQ = query(collection(db, "posts"), orderBy("date"));
+            const unsubscribe = onSnapshot(postQ, (snapshot) => {
+              snapshot.docChanges().forEach((change) => {
+                let postChange = change.doc.data();
+                postChange.id = change.doc.id;
+                this.postID = postChange.id;
+                this.creatorID = postChange.creatorId;
+                if (postChange.underPostID === undefined) {
+                  if (change.type === "added") {
+                    this.creatorUsername = postChange.creatorUsername;
+                    this.creatorDisplayname = postChange.creatorDisplayname;
+                    this.creatorImage = postChange.creatorImage;
+                    this.creatorVerified = postChange.isUserVerified;
+                    this.postImage = postChange.postImg;
+                    this.postID = postChange.id;
+                    this.repostID = postChange.repostID;
+                    this.creatorID = postChange.creatorId;
+                    const likes = Object.keys(postChange.whoLiked);
+
+                    if (likes.length >= this.globalLikeVariable) {
+                      if (postChange.NSFW) {
+                        if (this.doYouWantNSFW) {
+                          this.myPosts.unshift(postChange.id);
+                          this.posts.unshift(postChange);
+                        }
+                      } else {
+                        this.myPosts.unshift(postChange.id);
+                        this.posts.unshift(postChange);
+                      }
+                    }
+                    if (postChange.hashtags !== undefined) {
+                      postChange.hashtags.forEach((hashtag) => {
+                        if (!this.hashtags.includes(hashtag)) {
+                          this.hashtags.push(hashtag);
+                        }
+                      });
+                    }
+                    if (postChange.repostID !== undefined) {
+                      const newSub = onSnapshot(
+                        doc(db, "posts", postChange.repostID),
+                        (prevPoster) => {
+                          if (prevPoster.exists()) {
+                            let prevPost = prevPoster.data();
+                            prevPost.id = prevPoster.id;
+
+                            const existingPostIndex =
+                              this.repostedPosts.findIndex(
+                                (post) => post.id === postChange.repostID
+                              );
+
+                            if (existingPostIndex === -1) {
+                              this.repostedPosts.push(prevPost);
+                            }
+                          } else {
+                            const deletedPostIndex =
+                              this.repostedPosts.findIndex(
+                                (post) => post.id === postChange.repostID
+                              );
+
+                            if (deletedPostIndex !== -1) {
+                              this.repostedPosts[
+                                deletedPostIndex
+                              ].deleted = true;
+                            } else {
+                              this.repostedPosts.push({
+                                deleted: true,
+                                id: postChange.repostID,
+                              });
+                            }
+                          }
+                        }
+                      );
+                    }
+
+                    if (postChange.creatorId === this.creatorID) {
+                      const joinedArray = this.myPosts.join(" ");
+                      const array = joinedArray.split(" ");
+                      const filteredArray = array.filter(
+                        (item) => item === postChange.id
+                      );
+
+                      const usernameRef = dbRef(
+                        database,
+                        "users/" + postChange.creatorId
+                      );
+                      onValue(usernameRef, async (snapshot) => {
+                        if (snapshot.val() !== null) {
+                          const data = snapshot.val();
+                          for (const postId of filteredArray) {
+                            const replaceInfo = doc(db, "posts", postId);
+                            let newInfo;
+
+                            if (data.verified === undefined) {
+                              this.userVerified = false;
+                              this.currUsername = data.username;
+                              this.currName = data.displayName;
+
+                              if (this.creatorID === myID && this.postID) {
+                                newInfo = {
+                                  creatorUsername: data.username,
+                                  creatorDisplayname: data.displayName,
+                                  isUserVerified: false,
+                                  creatorImage: data.image,
+                                  isHidden: false,
+                                };
+                              } else {
+                                newInfo = {
+                                  isUserVerified: this.userVerified,
+                                };
+                              }
+                            } else {
+                              this.userVerified = data.verified;
+                              this.currUsername = data.username;
+                              this.currName = data.displayName;
+
+                              if (this.creatorID === myID && this.postID) {
+                                newInfo = {
+                                  creatorUsername: data.username,
+                                  creatorDisplayname: data.displayName,
+                                  isUserVerified: data.verified,
+                                  creatorImage: data.image,
+                                  isHidden: false,
+                                };
+                              } else if (this.creatorID !== myID) {
+                                newInfo = {
+                                  isHidden: true,
+                                };
+                              } else {
+                                newInfo = {
+                                  isUserVerified: this.userVerified,
+                                };
+                              }
+                            }
+
+                            await updateDoc(replaceInfo, newInfo);
+                          }
+                        } else if (snapshot.val() === null) {
+                          this.userVerified = false;
+                          this.currUsername = "";
+                          this.currName = "Deleted User";
+                          this.creatorUsername = "";
+                          this.creatorDisplayname = "Deleted User";
+                          this.creatorImage = this.defaultImage;
+                          this.creatorVerified = false;
+
+                          const replaceInfo = doc(db, "posts/", filteredArray);
+                          const newInfo = {
+                            creatorUsername: "",
+                            creatorDisplayname: "Deleted User",
+                            isUserVerified: false,
+                            creatorImage: this.defaultImage,
+                            content: "(deleted)",
+                          };
+                          updateDoc(replaceInfo, newInfo);
+                        }
+                      });
+                    }
+
+                    if (change.type === "modified") {
+                      let index = this.posts.findIndex(
+                        (post) => post.id === postChange.id
+                      );
+                      Object.assign(this.posts[index], postChange);
+                    }
+                    if (change.type === "removed") {
+                      let index = this.posts.findIndex(
+                        (post) => post.id === postChange.id
+                      );
+                      this.posts.splice(index, 1);
+                    }
+                  }
+                }
+              });
+            });
           }
-        });
+        }
+      });
+    },
+    getProfileInfo() {
+      const userId = auth.currentUser.uid;
+
+      const userFollowRef = dbRef(database, "users/" + userId);
+      onValue(userFollowRef, (snapshot1) => {
+        const info = snapshot1.val();
+        this.myImage = info.image;
+        this.admin = info.admin;
+        this.theme = info.theme;
+        this.doYouWantNSFW = info.doYouWantNSFW;
+        this.currName = info.displayName;
+
+        if (!snapshot1.val().verified === undefined) {
+          this.userVerified = snapshot.val().verified;
+        } else {
+          this.userVerified = false;
+        }
       });
     },
   },
-  async mounted() {
-    const myID = auth.currentUser.uid;
-
-    const dbReff = dbRef(getDatabase());
-    get(child(dbReff, `users/${myID}`))
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          this.myImage = snapshot.val().image;
-          this.admin = snapshot.val().admin;
-          if (!snapshot.val().verified === undefined) {
-            this.userVerified = snapshot.val().verified;
-          } else {
-            this.userVerified = false;
-          }
-        } else {
-          console.log("No data available");
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-      });
-    this.getPosts();
-  },
+  async mounted() {},
 });
 </script>
 
@@ -938,31 +1669,58 @@ export default defineComponent({
   object-fit: cover;
 }
 .post-icons {
-  width: 80%;
+  width: 90%;
   align-items: center;
   padding: 0;
 }
+.postButtonContainer {
+  position: relative;
+  display: inline-block;
+}
+
 .postLikes {
-  display: flex;
-  position: absolute;
-  font-size: 16px;
   color: grey;
-  right: 35%;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .homePostAvatar {
   width: 50px;
   height: 50px;
   display: flex;
   cursor: pointer;
-  object-fit: cover;
+  overflow: hidden;
+  img {
+    width: auto;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+  }
 }
-.myPostAvatar {
-  width: 50px;
-  height: 50px;
+.homeRepostAvatar {
   display: flex;
   cursor: pointer;
   object-fit: cover;
+  object-position: center center;
+  img {
+    width: auto;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+  }
 }
+.myPostAvatar {
+  display: flex;
+  object-fit: cover;
+  object-position: center center;
+  img {
+    width: auto;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+  }
+}
+
 .homePostContent {
   white-space: pre-line;
 }
@@ -1009,5 +1767,25 @@ export default defineComponent({
 
 img[src=""] {
   display: none;
+}
+
+.hashtag {
+  color: rgb(255, 95, 95);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.isNSFW {
+  color: $grey-8;
+  position: absolute;
+  top: 7px;
+  right: 50px;
+  padding: 4px;
+}
+
+.blur {
+  filter: blur(15px);
 }
 </style>

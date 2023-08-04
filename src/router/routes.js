@@ -64,6 +64,11 @@ const routes = [
         name: "About and Rules",
       },
       {
+        path: "topic/:topic",
+        component: () => import("pages/HashtagPage.vue"),
+        name: "Topics",
+      },
+      {
         path: "reports",
         component: () => import("pages/ReportsPage.vue"),
         name: "Reports",

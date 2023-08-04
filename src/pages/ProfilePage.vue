@@ -4,6 +4,12 @@
       v-if="!banned"
       :visible="false"
       class="absolute full-width full-height"
+      :style="
+        'background-color: ' +
+        getThemeColour(theme.value).mild +
+        '; color: ' +
+        getThemeColour(theme.value).txt
+      "
     >
       <div class="userInfo" v-for="user in users" :key="user.id">
         <div class="flexy">
@@ -13,18 +19,33 @@
                 :key="$route.fullPath"
                 :src="user.image"
                 alt="avatar"
-                :class="user.id === myID ? 'avatar' : 'notYourAvatar'"
+                :class="user.id === myID ? 'profileAvatar' : 'notYourAvatar'"
                 for="actual-btn"
+                title="Change your profile avatar by clicking here!"
             /></label>
 
             <input
               type="file"
-              ref="fileInput"
               :id="user.id === myID ? 'actual-btn' : ''"
-              @change="onFilePicked"
-              accept=".jpg, .png, .jpeg"
+              @change="handleFileSelect"
+              accept=".png, .jpg, .jpeg"
               hidden
             />
+            <q-dialog v-model="dialogVisible" full-width>
+              <div style="position: relative; height: 90%; width: 614px">
+                <vue-cropper
+                  ref="cropper"
+                  :aspect-ratio="1"
+                  :src="imgUrl"
+                  alt="Uploaded image"
+                >
+                </vue-cropper>
+              </div>
+              <q-card-actions align="right">
+                <q-btn label="Cancel" color="red" @click="cancelCrop" />
+                <q-btn label="Crop" color="green" @click="onFilePicked" />
+              </q-card-actions>
+            </q-dialog>
           </div>
 
           <h5 class="names">
@@ -138,14 +159,32 @@
           />
         </div>
       </div>
-      <q-separator class="q-mt-xl q-mb-sm q-py-xs" color="grey-10" />
+      <q-separator
+        class="q-mt-xl q-mb-sm q-py-xs"
+        :style="
+          'background-color: ' +
+          getThemeColour(theme.value).bg +
+          '; color: ' +
+          getThemeColour(theme.value).txt
+        "
+      />
 
-      <q-card>
+      <q-card
+        :style="
+          'background-color: ' +
+          getThemeColour(theme.value).mild +
+          '; color: ' +
+          getThemeColour(theme.value).txt
+        "
+      >
         <q-tabs
           v-model="tab"
           dense
-          :class="
-            $q.dark.isActive ? 'bg-primary text-grey' : 'text-grey bg-grey-4'
+          :style="
+            'background-color: ' +
+            getThemeColour(theme.value).mild +
+            '; color: ' +
+            getThemeColour(theme.value).txt
           "
           :active-color="$q.dark.isActive ? 'secondary' : 'primary'"
           :active-bg-color="$q.dark.isActive ? 'grey-10' : 'secondary'"
@@ -162,7 +201,12 @@
         <q-tab-panels v-model="tab" animated>
           <q-tab-panel
             name="ownPosts"
-            :class="$q.dark.isActive ? 'bg-primary' : 'bg-secondary'"
+            :style="
+              'background-color: ' +
+              getThemeColour(theme.value).mild +
+              '; color: ' +
+              getThemeColour(theme.value).txt
+            "
           >
             <q-list separator>
               <transition-group
@@ -174,6 +218,12 @@
                   v-for="ownPost in profilePosts"
                   :key="ownPost.id"
                   class="q-py-md"
+                  :style="
+                    'background-color: ' +
+                    getThemeColour(theme.value).mild +
+                    '; color: ' +
+                    getThemeColour(theme.value).txt
+                  "
                 >
                   <q-item-section avatar top>
                     <label
@@ -224,11 +274,264 @@
                             : format(ownPost.date, "d MMM")
                         }}</span
                       >
+                      <span
+                        v-if="ownPost.NSFW"
+                        style="color: red; margin-left: 5px"
+                        >NSFW</span
+                      >
                     </q-item-label>
                     <q-item-label class="post-content text-body1">
                       <span v-html="linkifyText(ownPost)"></span>
-                      <img :src="ownPost.postImg" class="postImage" />
+                      <img
+                        v-if="ownPost.NSFW"
+                        @click="
+                          imageShower = true;
+                          openImage = ownPost.postImg;
+                        "
+                        :src="ownPost.postImg"
+                        class="postImage blur"
+                      />
+                      <img
+                        v-else
+                        @click="
+                          imageShower = true;
+                          openImage = ownPost.postImg;
+                        "
+                        :src="ownPost.postImg"
+                        class="postImage"
+                      />
+                      <div v-for="repost in repostedPosts" :key="repost.id">
+                        <q-item
+                          v-if="
+                            ownPost.repostID !== undefined &&
+                            repost.id === ownPost.repostID &&
+                            !repost.deleted
+                          "
+                          style="
+                            border: 1px solid grey;
+                            border-radius: 5px;
+                            padding: 15px;
+                            margin-top: 10px;
+                            margin-right: 20px;
+                          "
+                          clickable
+                          :to="'/post/' + ownPost.repostID"
+                        >
+                          <q-item-section avatar top>
+                            <label
+                              for="actual-btn"
+                              class="clickableLabel"
+                              @click="handleRedirect(repost)"
+                            >
+                              <q-avatar round size="lg">
+                                <q-img
+                                  v-bind:src="repost.creatorImage"
+                                  class="homeRepostAvatar"
+                                /> </q-avatar
+                            ></label>
+
+                            <button id="actual-btn" hidden></button>
+                          </q-item-section>
+                          <q-item-label class="text-subtitle1"
+                            ><strong
+                              @click="handleRedirect(repost)"
+                              class="clickableLabel"
+                              :style="
+                                'color: ' + getThemeColour(theme.value).txt
+                              "
+                              >{{ repost.creatorDisplayname }}</strong
+                            >
+                            <q-icon
+                              :name="
+                                ownPost.isUserVerified
+                                  ? 'bi-moon-stars-fill'
+                                  : ''
+                              "
+                              :style="
+                                'color: ' + getThemeColour(theme.value).txt
+                              "
+                              :class="
+                                repost.isUserVerified
+                                  ? 'showWhenVerified'
+                                  : 'hideWhenNotVerified'
+                              "
+                            />
+                            <span
+                              class="text-grey-7"
+                              style="
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                                overflow: hidden;
+                              "
+                            >
+                              @{{ repost.creatorUsername }}
+                              ─
+                            </span>
+                            <span class="text-grey-7">
+                              {{
+                                repost.date > Date.now() - 35 * 60 * 60 * 1000
+                                  ? formatDistanceStrict(
+                                      repost.date,
+                                      new Date()
+                                    ) + " ago"
+                                  : format(repost.date, "d MMM")
+                              }}</span
+                            >
+                            <span
+                              v-if="repost.NSFW"
+                              style="color: red; margin-left: 5px"
+                              >NSFW</span
+                            >
+                            <q-item-label class="homePostContent text-body2">
+                              <span
+                                v-html="linkifyText(repost)"
+                                :style="
+                                  'background-color: ' +
+                                  getThemeColour(theme.value).mild +
+                                  '; color: ' +
+                                  getThemeColour(theme.value).txt
+                                "
+                              ></span>
+                              <img
+                                v-if="repost.NSFW"
+                                :src="repost.postImg"
+                                class="postImage blur"
+                              />
+                              <img
+                                v-else
+                                :src="repost.postImg"
+                                class="postImage"
+                              />
+                            </q-item-label>
+                          </q-item-label>
+                        </q-item>
+                        <q-item
+                          v-if="
+                            repost.deleted && repost.id === ownPost.repostID
+                          "
+                          style="
+                            border: 2px solid grey;
+                            padding: 15px;
+                            color: red;
+                          "
+                          >DELETED POST</q-item
+                        >
+                      </div>
                     </q-item-label>
+                    <q-dialog
+                      v-for="post in posts"
+                      :key="post.id"
+                      v-model="post.imageShower"
+                    >
+                      <q-card>
+                        <img :src="post.postImg" />
+                      </q-card>
+                    </q-dialog>
+                    <q-dialog v-model="repostPrompt" persistent>
+                      <q-card style="padding: 10px; width: 700px">
+                        <q-card-section>
+                          <div class="text-h5">Want to repost this?</div>
+                          <span class="text-body1 text-red"
+                            >@{{ selectedPost.creatorUsername }}:</span
+                          >
+                          <p>{{ selectedPost.content }}</p>
+                          <q-img
+                            v-if="selectedPost.postImg"
+                            :src="selectedPost.postImg"
+                            style="height: 300px; width: 300px"
+                          />
+                        </q-card-section>
+                        <q-separator />
+                        <div
+                          class="q-pt-lg q-pb-sm q-px-md row items-end q-col-gutter-sm"
+                        >
+                          <div class="col">
+                            <q-input
+                              bottom-slots
+                              v-model="repostPost"
+                              placeholder="Repost content here"
+                              autogrow
+                              borderless
+                              :counter="repostPost ? true : false"
+                              maxlength="680"
+                              class="new-post"
+                            >
+                              <template v-slot:before>
+                                <q-avatar round size="xl">
+                                  <q-img
+                                    v-bind:src="myImage"
+                                    class="myPostAvatar"
+                                  />
+                                </q-avatar>
+                              </template>
+                            </q-input>
+                          </div>
+
+                          <div class="col col-shrink">
+                            <span class="isNSFW">NSFW?</span>
+                            <q-toggle
+                              v-model="isNSFW"
+                              color="red"
+                              keep-color
+                              title="Is your post NSFW? Toggle this if yes (:"
+                            />
+                            <q-btn
+                              icon="image"
+                              round
+                              dense
+                              flat
+                              class="q-mb-lg"
+                              type="button"
+                              @click="pickFile"
+                            />
+                            <q-file
+                              style="display: none"
+                              v-model="repostImage"
+                              accept=".jpg, image/*"
+                              @update:model-value="onFilePickedRepost(e)"
+                              ref="files"
+                            >
+                            </q-file>
+                            <q-btn
+                              round
+                              dense
+                              flat
+                              @click="repostThis(selectedPost, repostPost)"
+                              icon="send"
+                              class="q-mb-lg"
+                              :disable="!repostPost && !repostImage"
+                              v-close-popup
+                            />
+                          </div>
+                        </div>
+                        <div
+                          :class="
+                            imageRepostShow ? 'showwhenimage' : 'hidewhenimage'
+                          "
+                        >
+                          <q-img
+                            :src="repostImageUrl"
+                            class="imagePreview"
+                            ratio="1"
+                          />
+                          <q-btn
+                            round
+                            dense
+                            flat
+                            icon="close"
+                            :class="
+                              imageRepostShow
+                                ? 'showwhenimagebtn'
+                                : 'hidewhenimagebtn'
+                            "
+                            @click="cancelFileUpload"
+                          ></q-btn>
+                        </div>
+                        <q-card-actions>
+                          <q-btn v-close-popup label="Close" />
+                        </q-card-actions>
+                      </q-card>
+                    </q-dialog>
                     <div class="postMenu row justify-between q-mt-sm">
                       <q-btn
                         flat
@@ -343,17 +646,21 @@
                             : 0
                         }}
                       </span>
-
-                      <q-btn flat round color="grey" icon="share" size="sm" />
                     </div>
                   </q-item-section>
                 </q-item>
-              </transition-group> </q-list
-          ></q-tab-panel>
+              </transition-group>
+            </q-list></q-tab-panel
+          >
 
           <q-tab-panel
             name="likedPosts"
-            :class="$q.dark.isActive ? 'bg-primary' : 'bg-secondary'"
+            :style="
+              'background-color: ' +
+              getThemeColour(theme.value).mild +
+              '; color: ' +
+              getThemeColour(theme.value).txt
+            "
           >
             <q-list separator>
               <transition-group
@@ -417,6 +724,119 @@
                     <q-item-label class="post-content text-body1">
                       <span v-html="linkifyText(post)"></span>
                       <img :src="post.postImg" class="postImage" />
+                      <div v-for="repost in repostedPosts" :key="repost.id">
+                        <q-item
+                          v-if="
+                            post.repostID !== undefined &&
+                            repost.id === post.repostID &&
+                            !repost.deleted
+                          "
+                          style="
+                            border: 1px solid grey;
+                            border-radius: 5px;
+                            padding: 15px;
+                            margin-top: 10px;
+                            margin-right: 20px;
+                          "
+                          clickable
+                          :to="'/post/' + post.repostID"
+                        >
+                          <q-item-section avatar top>
+                            <label
+                              for="actual-btn"
+                              class="clickableLabel"
+                              @click="handleRedirect(repost)"
+                            >
+                              <q-avatar round size="lg">
+                                <q-img
+                                  v-bind:src="repost.creatorImage"
+                                  class="homeRepostAvatar"
+                                /> </q-avatar
+                            ></label>
+
+                            <button id="actual-btn" hidden></button>
+                          </q-item-section>
+                          <q-item-label class="text-subtitle1"
+                            ><strong
+                              @click="handleRedirect(repost)"
+                              class="clickableLabel"
+                              :style="
+                                'color: ' + getThemeColour(theme.value).txt
+                              "
+                              >{{ repost.creatorDisplayname }}</strong
+                            >
+                            <q-icon
+                              :name="
+                                post.isUserVerified ? 'bi-moon-stars-fill' : ''
+                              "
+                              :style="
+                                'color: ' + getThemeColour(theme.value).txt
+                              "
+                              :class="
+                                repost.isUserVerified
+                                  ? 'showWhenVerified'
+                                  : 'hideWhenNotVerified'
+                              "
+                            />
+                            <span
+                              class="text-grey-7"
+                              style="
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                                overflow: hidden;
+                              "
+                            >
+                              @{{ repost.creatorUsername }}
+                              ─
+                            </span>
+                            <span class="text-grey-7">
+                              {{
+                                repost.date > Date.now() - 35 * 60 * 60 * 1000
+                                  ? formatDistanceStrict(
+                                      repost.date,
+                                      new Date()
+                                    ) + " ago"
+                                  : format(repost.date, "d MMM")
+                              }}</span
+                            >
+                            <span
+                              v-if="repost.NSFW"
+                              style="color: red; margin-left: 5px"
+                              >NSFW</span
+                            >
+                            <q-item-label class="homePostContent text-body2">
+                              <span
+                                v-html="linkifyText(repost)"
+                                :style="
+                                  'background-color: ' +
+                                  getThemeColour(theme.value).mild +
+                                  '; color: ' +
+                                  getThemeColour(theme.value).txt
+                                "
+                              ></span>
+                              <img
+                                v-if="repost.NSFW"
+                                :src="repost.postImg"
+                                class="postImage blur"
+                              />
+                              <img
+                                v-else
+                                :src="repost.postImg"
+                                class="postImage"
+                              />
+                            </q-item-label>
+                          </q-item-label>
+                        </q-item>
+                        <q-item
+                          v-if="repost.deleted && repost.id === post.repostID"
+                          style="
+                            border: 2px solid grey;
+                            padding: 15px;
+                            color: red;
+                          "
+                          >DELETED POST</q-item
+                        >
+                      </div>
                     </q-item-label>
                     <div class="postMenu row justify-between q-mt-sm">
                       <q-btn
@@ -550,13 +970,12 @@
                             : 0
                         }}
                       </span>
-
-                      <q-btn flat round color="grey" icon="share" size="sm" />
                     </div>
                   </q-item-section>
                 </q-item>
-              </transition-group> </q-list
-          ></q-tab-panel>
+              </transition-group>
+            </q-list></q-tab-panel
+          >
         </q-tab-panels>
       </q-card>
     </q-scroll-area>
@@ -611,7 +1030,6 @@
       </div>
     </div>
     <!-- LIKERS -->
-
     <q-dialog v-model="likePrompt" persistent>
       <q-card>
         <q-card-section>
@@ -884,6 +1302,8 @@ import { getDownloadURL, ref as stRef, uploadBytes } from "firebase/storage";
 import { formatDistanceStrict, formatDistance, format } from "date-fns";
 import sanitizeHtml from "sanitize-html";
 import { useQuasar } from "quasar";
+import VueCropper from "vue-cropperjs";
+import "cropperjs/dist/cropper.css";
 
 const inputRef = ref(null);
 const fileInput = ref(null);
@@ -891,6 +1311,28 @@ const prompt = ref(false);
 
 export default defineComponent({
   name: "ProfilePage",
+  components: { VueCropper },
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.users = [];
+      vm.profilePosts = [];
+      vm.likedPosts = [];
+      vm.getProfileInfo();
+
+      vm.getOwnPosts();
+      vm.getLikedPosts();
+    });
+  },
+  beforeRouteUpdate(to, from, next) {
+    this.users = [];
+    this.profilePosts = [];
+    this.likedPosts = [];
+    this.getProfileInfo();
+
+    this.getOwnPosts();
+    this.getLikedPosts();
+    next();
+  },
   data() {
     return {
       profileName: "",
@@ -942,6 +1384,18 @@ export default defineComponent({
       followerPrompt: false,
       followingPrompt: false,
       selectedUser: {},
+      theme: "",
+      imgUrl: "",
+      cropImg: "",
+      cropper: null,
+      dialogVisible: false,
+      repostPrompt: false,
+      repostPost: "",
+      repostImageUrl: "",
+      repostImage: null,
+      imageRepostShow: false,
+      repostedPosts: [],
+      repostID: [],
     };
   },
   setup() {
@@ -989,6 +1443,43 @@ export default defineComponent({
     return { confirm, deletePost, confirmReport };
   },
   methods: {
+    async repostThis(post, repost) {
+      const creatorID = auth.currentUser.uid;
+      let newPost = {
+        content: repost,
+        date: Date.now(),
+        whoLiked: [],
+        isUserVerified: this.userVerified,
+        creatorUsername: this.currUsername,
+        creatorDisplayname: this.currName,
+        creatorImage: this.myImage,
+        creatorId: creatorID,
+        postImg: this.repostImageUrl,
+        hashtags: this.createHashtags(repost),
+        NSFW: this.isNSFW,
+        repostID: post.id,
+      };
+      addDoc(collection(db, "posts"), newPost);
+      if (this.repostImage !== null) {
+        let uidDate = new Date().getTime();
+        const currentUser = auth.currentUser;
+
+        const metadata = {
+          contentType: this.repostImage.type,
+        };
+
+        const fileRef = stRef(
+          storage,
+          "images/posts/" + currentUser.uid + uidDate
+        );
+
+        await uploadBytes(fileRef, this.repostImage, metadata);
+      }
+      this.imageRepostShow = false;
+      this.repostImageUrl = "";
+      this.repostImage = null;
+      this.hashtags = [];
+    },
     handleRedirectFollowing(follower) {
       const dbReff = dbRef(getDatabase());
       get(child(dbReff, `users/${follower.id}`))
@@ -1226,11 +1717,11 @@ export default defineComponent({
     checkIcon(post) {
       const myID = auth.currentUser.uid;
       if (post.whoLiked === undefined) {
-        return "favorite_border";
+        return "star_border";
       } else if (post.whoLiked[myID]) {
-        return "favorite";
+        return "star";
       } else if (!post.whoLiked[myID]) {
-        return "favorite_border";
+        return "star_border";
       }
     },
     linkifyText(post) {
@@ -1246,10 +1737,17 @@ export default defineComponent({
         pattern2,
         '$1<a href="http://$2" target="_blank">$2</a>'
       );
+
+      const pattern3 = /#(\w+)/g;
+      text = text.replace(
+        pattern3,
+        '<a class="hashtag" href="/#/topic/$1">#$1</a>'
+      );
+
       return sanitizeHtml(text, {
         allowedTags: ["b", "i", "em", "strong", "a"],
         allowedAttributes: {
-          a: ["href"],
+          a: ["href", "class"],
         },
         allowedIframeHostnames: ["www.youtube.com"],
       });
@@ -1333,6 +1831,38 @@ export default defineComponent({
                 this.postID = ownPosts.id;
                 this.creatorID = ownPosts.creatorId;
                 this.profilePosts.unshift(ownPosts);
+                if (ownPosts.repostID !== undefined) {
+                  const newSub = onSnapshot(
+                    doc(db, "posts", ownPosts.repostID),
+                    (prevPoster) => {
+                      if (prevPoster.exists()) {
+                        let prevPost = prevPoster.data();
+                        prevPost.id = prevPoster.id;
+
+                        const existingPostIndex = this.repostedPosts.findIndex(
+                          (post) => post.id === ownPosts.repostID
+                        );
+
+                        if (existingPostIndex === -1) {
+                          this.repostedPosts.push(prevPost);
+                        }
+                      } else {
+                        const deletedPostIndex = this.repostedPosts.findIndex(
+                          (post) => post.id === ownPosts.repostID
+                        );
+
+                        if (deletedPostIndex !== -1) {
+                          this.repostedPosts[deletedPostIndex].deleted = true;
+                        } else {
+                          this.repostedPosts.push({
+                            deleted: true,
+                            id: ownPosts.repostID,
+                          });
+                        }
+                      }
+                    }
+                  );
+                }
               }
 
               if (profileChange.type === "modified") {
@@ -1411,6 +1941,38 @@ export default defineComponent({
                 this.postID = likedPostChange.id;
                 this.creatorID = likedPostChange.creatorId;
                 this.likedPosts.unshift(likedPostChange);
+                if (likedPostChange.repostID !== undefined) {
+                  const newSub = onSnapshot(
+                    doc(db, "posts", likedPostChange.repostID),
+                    (prevPoster) => {
+                      if (prevPoster.exists()) {
+                        let prevPost = prevPoster.data();
+                        prevPost.id = prevPoster.id;
+
+                        const existingPostIndex = this.repostedPosts.findIndex(
+                          (post) => post.id === likedPostChange.repostID
+                        );
+
+                        if (existingPostIndex === -1) {
+                          this.repostedPosts.push(prevPost);
+                        }
+                      } else {
+                        const deletedPostIndex = this.repostedPosts.findIndex(
+                          (post) => post.id === likedPostChange.repostID
+                        );
+
+                        if (deletedPostIndex !== -1) {
+                          this.repostedPosts[deletedPostIndex].deleted = true;
+                        } else {
+                          this.repostedPosts.push({
+                            deleted: true,
+                            id: likedPostChange.repostID,
+                          });
+                        }
+                      }
+                    }
+                  );
+                }
               }
 
               if (likedChange.type === "modified") {
@@ -1541,7 +2103,7 @@ export default defineComponent({
 
       const dbProfile = getDatabase();
       const q = query(
-        dbRef(db2, "users"),
+        dbRef(dbProfile, "users"),
         orderByChild("username"),
         equalTo(username)
       );
@@ -1597,31 +2159,41 @@ export default defineComponent({
         }
       });
     },
-    async onFilePicked(e) {
-      const files = e.target.files;
-      let filename = files[0].name;
-      if (filename.lastIndexOf(".") <= 0) {
-        return alert("Please add a valid file!");
+    handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file.type.indexOf("image/") === -1) {
+        alert("Please select an image file");
+        return;
       }
-      const fileReader = new FileReader();
-      fileReader.addEventListener("load", () => {
-        this.imageURL = fileReader.result;
-      });
-      fileReader.readAsDataURL(files[0]);
-      this.image = files[0];
+      if (typeof FileReader === "function") {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          this.imgUrl = event.target.result;
+          // rebuild cropperjs with the updated source
+          this.dialogVisible = true;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert("Sorry, FileReader API not supported");
+      }
+    },
+    async onFilePicked() {
+      const croppedCanvas = this.$refs.cropper[0]
+        .getCroppedCanvas()
+        .toDataURL();
       const currentUser = auth.currentUser;
-      const metadata = {
-        contentType: files[0].type,
-      };
 
       const fileRef = stRef(storage, "images/" + currentUser.uid);
 
-      const snapshot = await uploadBytes(fileRef, files[0], metadata);
+      const snapshot = await uploadBytes(
+        fileRef,
+        this.dataURLtoBlob(croppedCanvas),
+        { contentType: "image/png" }
+      );
 
       const image = await getDownloadURL(fileRef);
-      this.image = image;
       update(dbRef(database, "users/" + currentUser.uid), {
-        image: this.image,
+        image: image,
       })
         .then(() => {
           // Data saved successfully!
@@ -1631,6 +2203,24 @@ export default defineComponent({
           // The write failed...
           alert(error);
         });
+    },
+    cancelCrop() {
+      this.dialogVisible = false;
+    },
+    dataURLtoBlob(dataURL) {
+      const arr = dataURL.split(",");
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      if (!mimeMatch || mimeMatch.length < 2) {
+        throw new Error("Invalid data URL format");
+      }
+      const mime = mimeMatch[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
     },
     editProfile() {
       const user = auth.currentUser;
@@ -1680,74 +2270,72 @@ export default defineComponent({
         return;
       }
     },
-  },
-  async mounted() {
-    const userId = auth.currentUser.uid;
-    const username = window.location.href.split("profile/")[1];
+    getProfileInfo() {
+      const userId = auth.currentUser.uid;
+      const username = window.location.href.split("profile/")[1];
 
-    const db2 = getDatabase();
-    const q = query(
-      dbRef(db2, "users"),
-      orderByChild("username"),
-      equalTo(username)
-    );
-    get(q).then((snapshot) => {
-      if (snapshot.exists()) {
-        const key = Object.keys(snapshot.val())[0];
-        const dbReff = dbRef(getDatabase());
-        this.userID = key;
+      const db2 = getDatabase();
+      const q = query(
+        dbRef(db2, "users"),
+        orderByChild("username"),
+        equalTo(username)
+      );
+      get(q).then((snapshot) => {
+        if (snapshot.exists()) {
+          const key = Object.keys(snapshot.val())[0];
+          const dbReff = dbRef(getDatabase());
+          this.userID = key;
 
-        const userFollowRef = dbRef(database, "users/" + userId);
-        onValue(userFollowRef, (snapshot1) => {
-          const info = snapshot1.val();
-          this.myImage = info.image;
-          this.admin = info.admin;
-        });
-        get(child(dbReff, `users/${key}`))
-          .then((snapshotUser) => {
-            if (snapshotUser.exists()) {
-              let theUser = snapshotUser.val();
-              theUser.id = snapshotUser.key;
-              this.users.push(theUser);
-              this.selectedUser = theUser;
-
-              this.currUsername = snapshotUser.val().username;
-              this.profileName = snapshotUser.val().displayName;
-              this.image = snapshotUser.val().image;
-              if (snapshotUser.val().verified !== undefined) {
-                this.isUserVerified = snapshotUser.val().verified;
-              } else {
-                this.isUserVerified = false;
-              }
-              this.bio = snapshotUser.val().bio;
-              if (snapshotUser.child("followers").size > 0) {
-                this.followerCount = snapshotUser.child("followers").size;
-              } else {
-                this.followerCount = 0;
-              }
-              if (snapshotUser.child("following").size > 0) {
-                this.followingCount = snapshotUser.child("following").size;
-              } else {
-                this.followingCount = 0;
-              }
-              if (theUser.status !== undefined) {
-                this.banned = theUser.status.banned;
-              }
-              if (key === userId) {
-                this.isYourProfile = true;
-              }
-            } else {
-              console.log("No data available");
-            }
-          })
-          .catch((error) => {
-            console.error(error);
+          const userFollowRef = dbRef(database, "users/" + userId);
+          onValue(userFollowRef, (snapshot1) => {
+            const info = snapshot1.val();
+            this.myImage = info.image;
+            this.admin = info.admin;
+            this.theme = info.theme;
           });
-      }
-    });
+          get(child(dbReff, `users/${key}`))
+            .then((snapshotUser) => {
+              if (snapshotUser.exists()) {
+                let theUser = snapshotUser.val();
+                theUser.id = snapshotUser.key;
+                this.users.push(theUser);
+                this.selectedUser = theUser;
 
-    this.getOwnPosts();
-    this.getLikedPosts();
+                this.currUsername = snapshotUser.val().username;
+                this.profileName = snapshotUser.val().displayName;
+                this.image = snapshotUser.val().image;
+                if (snapshotUser.val().verified !== undefined) {
+                  this.isUserVerified = snapshotUser.val().verified;
+                } else {
+                  this.isUserVerified = false;
+                }
+                this.bio = snapshotUser.val().bio;
+                if (snapshotUser.child("followers").size > 0) {
+                  this.followerCount = snapshotUser.child("followers").size;
+                } else {
+                  this.followerCount = 0;
+                }
+                if (snapshotUser.child("following").size > 0) {
+                  this.followingCount = snapshotUser.child("following").size;
+                } else {
+                  this.followingCount = 0;
+                }
+                if (theUser.status !== undefined) {
+                  this.banned = theUser.status.banned;
+                }
+                if (key === userId) {
+                  this.isYourProfile = true;
+                }
+              } else {
+                console.log("No data available");
+              }
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        }
+      });
+    },
   },
 });
 </script>
@@ -1874,7 +2462,7 @@ export default defineComponent({
   cursor: pointer;
   object-fit: cover;
 }
-.avatar {
+.profileAvatar {
   margin: 15px;
   margin-left: 20px;
   margin-top: 20px;
@@ -1909,5 +2497,17 @@ export default defineComponent({
   white-space: pre-line;
   margin: 30px;
   margin-top: 0;
+}
+
+.hashtag {
+  color: rgb(255, 95, 95);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.blur {
+  filter: blur(15px);
 }
 </style>
